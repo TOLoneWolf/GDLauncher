@@ -12,7 +12,8 @@ import {
   faWrench,
   faFolder,
   faTrash,
-  faStop
+  faStop,
+  faClone
 } from '@fortawesome/free-solid-svg-icons';
 import psTree from 'ps-tree';
 import { ContextMenuTrigger, ContextMenu, MenuItem } from 'react-contextmenu';
@@ -210,6 +211,9 @@ const Instance = ({ instanceName }) => {
   const manageInstance = () => {
     dispatch(openModal('InstanceManager', { instanceName }));
   };
+  const duplicateInstance = () => {
+    dispatch(openModal('duplicateInstance', { instanceName }));
+  };
   const killProcess = () => {
     console.log(isPlaying.pid);
     psTree(isPlaying.pid, (err, children) => {
@@ -318,6 +322,17 @@ const Instance = ({ instanceName }) => {
             Kill
           </MenuItem>
         )}
+        {!isPlaying && (
+          <MenuItem onClick={startInstance}>
+            <FontAwesomeIcon
+              icon={faPlay}
+              css={`
+                margin-right: 10px;
+              `}
+            />
+            Play
+          </MenuItem>
+        )}
         <MenuItem disabled={Boolean(isInQueue)} onClick={manageInstance}>
           <FontAwesomeIcon
             icon={faWrench}
@@ -326,6 +341,15 @@ const Instance = ({ instanceName }) => {
             `}
           />
           Manage
+        </MenuItem>
+        <MenuItem disabled={Boolean(isInQueue)} onClick={duplicateInstance}>
+          <FontAwesomeIcon
+            icon={faClone}
+            css={`
+              margin-right: 10px;
+            `}
+          />
+          Duplicate
         </MenuItem>
         <MenuItem onClick={openFolder}>
           <FontAwesomeIcon
