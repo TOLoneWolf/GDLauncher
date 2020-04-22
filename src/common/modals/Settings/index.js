@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 import Modal from '../../components/Modal';
 import General from './components/General';
 import Java from './components/Java';
+import InterfaceTheme from './components/InterfaceTheme';
 import CloseButton from '../../components/CloseButton';
 import { closeModal } from '../../reducers/modals/actions';
 
@@ -85,6 +86,8 @@ function Page(page) {
       return <General />;
     case 'Java':
       return <Java />;
+    case 'InterfaceTheme':
+      return <InterfaceTheme />;
     default:
       return null;
   }
@@ -123,6 +126,12 @@ export default function Settings() {
             onClick={() => setPage('Java')}
           >
             Java
+          </SettingsButton>
+          <SettingsButton
+            active={page === 'InterfaceTheme'}
+            onClick={() => setPage('InterfaceTheme')}
+          >
+            Interface Theme
           </SettingsButton>
           {/* <SettingsButton onClick={() => setPage("User Interface")}>
             User Interface

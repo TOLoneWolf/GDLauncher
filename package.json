@@ -182,6 +182,7 @@
     "ps-tree": "^1.2.0",
     "react": "^16.13.1",
     "react-beautiful-dnd": "^13.0.0",
+    "react-color": "^2.18.0",
     "react-content-loader": "^5.0.4",
     "react-contextmenu": "^2.13.0",
     "react-dom": "^16.13.1",
