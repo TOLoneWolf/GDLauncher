@@ -3,7 +3,7 @@ import path from 'path';
 import memoize from 'lodash/memoize';
 import { convertOSToJavaFormat } from '../../app/desktop/utils';
 
-const _instances = state => state.instances;
+const _instances = state => state.app.instances;
 const _accounts = state => state.app.accounts;
 const _java = state => state.settings.java;
 const _currentAccountId = state => state.app.currentAccountId;

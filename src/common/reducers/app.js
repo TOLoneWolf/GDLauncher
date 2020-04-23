@@ -1,5 +1,6 @@
 import { combineReducers } from 'redux';
 import * as ActionTypes from './actionTypes';
+import PromiseQueue from '../../app/desktop/utils/PromiseQueue';
 
 function accounts(state = [], action) {
   const index = state.findIndex(
@@ -101,6 +102,44 @@ function showChangelogs(state = false, action) {
   }
 }
 
+function instances(state = { started: false, list: {} }, action) {
+  switch (action.type) {
+    case ActionTypes.UPDATE_INSTANCES:
+      // eslint-disable-next-line
+      for (const instance1 in action.instances) {
+        const instance = action.instances[instance1];
+        // eslint-disable-next-line
+        if (!instance) continue;
+        if (!instance.name) {
+          // eslint-disable-next-line
+          instance.name = instance1;
+        }
+        if (state.list[instance.name]?.queue) {
+          // eslint-disable-next-line
+          instance.queue = state.list[instance.name].queue;
+        } else {
+          // eslint-disable-next-line
+          instance.queue = new PromiseQueue();
+        }
+      }
+      return { ...state, list: action.instances };
+    case ActionTypes.REORDER_INSTANCES:
+      if (Array.isArray(action.instances)) {
+        const instanceMap = action.instances.reduce((map, i) => {
+          // eslint-disable-next-line no-param-reassign
+          map[i.name] = i;
+          return map;
+        }, {});
+        return { ...state, list: instanceMap };
+      }
+      return { ...state, list: action.instances };
+    case ActionTypes.UPDATE_INSTANCES_STARTED:
+      return { ...state, started: action.started };
+    default:
+      return state;
+  }
+}
+
 export default combineReducers({
   accounts,
   currentAccountId,
@@ -111,5 +150,6 @@ export default combineReducers({
   curseforgeCategories,
   clientToken,
   isNewUser,
-  showChangelogs
+  showChangelogs,
+  instances
 });

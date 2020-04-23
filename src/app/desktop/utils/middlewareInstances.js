@@ -12,6 +12,8 @@ const middleware = store => next => action => {
   const currState = store.getState();
   const result = next(action);
   const nextState = store.getState();
+  // console.log(`currState ${currState.userData}`);
+  // console.log(`nextState ${nextState.userData}`);
   const { dispatch } = store;
   if (!nextState.userData) return result;
   const instancesPath = _getInstancesPath(nextState);
@@ -19,10 +21,25 @@ const middleware = store => next => action => {
   const userDataChanged = currState.userData !== nextState.userData;
 
   // If not initialized yet, start listener and do a first-time read
-  if (!nextState.instances.started || userDataChanged) {
+  // console.log(`NextState..started ${nextState.app.instances.started}`);
+  // console.log(`userDataChanged ${userDataChanged}`);
+  // console.log(
+  //   `nextState.app.instances ${JSON.stringify(nextState.app.instances)}`
+  // );
+  if (!nextState.app.instances.started || userDataChanged) {
+    console.log('FIRST_READ');
     const startInstancesListener = async () => {
       await ipcRenderer.invoke('stop-listener');
       await makeDir(instancesPath);
+
+      // if (nextState.app.instances) {
+      //   const { test } = nextState.app.instances;
+      //   dispatch({
+      //     type: ActionTypes.UPDATE_INSTANCES,
+      //     test
+      //   });
+      // }
+
       const instances = await getInstances(instancesPath);
       dispatch({
         type: ActionTypes.UPDATE_INSTANCES,

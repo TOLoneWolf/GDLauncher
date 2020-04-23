@@ -6,9 +6,7 @@ import { getDirectories } from '.';
 const getInstances = async instancesPath => {
   const mapFolderToInstance = async instance => {
     try {
-      const configPath = path.join(
-        path.join(instancesPath, instance, 'config.json')
-      );
+      const configPath = path.join(instancesPath, instance, 'config.json');
       const config = await fse.readJSON(configPath);
       if (!config.modloader) {
         throw new Error(`Config for ${instance} could not be parsed`);

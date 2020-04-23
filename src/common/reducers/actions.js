@@ -641,7 +641,7 @@ export function updateInstanceConfig(
       dispatch({
         type: ActionTypes.UPDATE_INSTANCES,
         instances: {
-          ...state.instances.list,
+          ...state.app.instances.list,
           [instanceName]: updateFunction(instance)
         }
       });
@@ -1442,7 +1442,7 @@ export const startListener = () => {
     ) => {
       const processChange = async () => {
         const newState = getState();
-        const instances = newState.instances.list;
+        const instances = newState.app.instances.list;
         const modData = instances[oldInstanceName].mods.find(
           m => m.fileName === path.basename(fileName)
         );
@@ -1488,7 +1488,7 @@ export const startListener = () => {
             dispatch({
               type: ActionTypes.UPDATE_INSTANCES,
               instances: {
-                ...newState.instances.list,
+                ...newState.app.instances.list,
                 [instanceName]: { ...config, name: instanceName }
               }
             });
@@ -1507,7 +1507,7 @@ export const startListener = () => {
           console.log('[RTS] REMOVING INSTANCE', instanceName);
           dispatch({
             type: ActionTypes.UPDATE_INSTANCES,
-            instances: omit(newState.instances.list, [instanceName])
+            instances: omit(newState.app.instances.list, [instanceName])
           });
         }
       };
@@ -1538,7 +1538,7 @@ export const startListener = () => {
             dispatch({
               type: ActionTypes.UPDATE_INSTANCES,
               instances: {
-                ...omit(newState.instances.list, [oldInstanceName]),
+                ...omit(newState.app.instances.list, [oldInstanceName]),
                 [newInstanceName]: { ...config, name: newInstanceName }
               }
             });
