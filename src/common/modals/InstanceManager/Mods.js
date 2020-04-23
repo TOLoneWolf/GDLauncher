@@ -1,17 +1,29 @@
-import React, { memo, useState, useEffect } from 'react';
-import styled from 'styled-components';
+import React, { memo, useState, useEffect, useMemo } from 'react';
+import styled, { keyframes } from 'styled-components';
 import memoize from 'memoize-one';
 import path from 'path';
+import pMap from 'p-map';
 import { FixedSizeList as List, areEqual } from 'react-window';
-import { Checkbox, Input, Button, Switch } from 'antd';
+import { Checkbox, Input, Button, Switch, Spin, Dropdown, Menu } from 'antd';
+import { LoadingOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faTrash,
+  faArrowDown,
+  faDownload,
+  faEllipsisV
+} from '@fortawesome/free-solid-svg-icons';
 import { useSelector, useDispatch } from 'react-redux';
+import { Transition } from 'react-transition-group';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { faTwitch } from '@fortawesome/free-brands-svg-icons';
 import fse from 'fs-extra';
 import { _getInstance, _getInstancesPath } from '../../utils/selectors';
-import { updateInstanceConfig } from '../../reducers/actions';
+import {
+  updateInstanceConfig,
+  deleteMod,
+  updateMod
+} from '../../reducers/actions';
 import { openModal } from '../../reducers/modals/actions';
 
 const Header = styled.div`
@@ -61,31 +73,80 @@ const RowContainer = styled.div.attrs(props => ({
     display: flex;
     justify-content: center;
     align-items: center;
-    button {
-      margin-right: 15px;
-    }
-    svg {
-      &:hover {
-        cursor: pointer;
-        path {
-          cursor: pointer;
-          transition: all 0.1s ease-in-out;
-          color: ${props => props.theme.palette.error.main};
-        }
-      }
+    & > * {
+      margin-left: 10px;
     }
   }
 `;
 
-const deleteMod = async (instanceName, instancePath, mod, dispatch) => {
-  await dispatch(
-    updateInstanceConfig(instanceName, prev => ({
-      ...prev,
-      mods: prev.mods.filter(m => m.fileName !== mod.fileName)
-    }))
+const DragEnterEffect = styled.div`
+  position: absolute;
+  display: flex;
+  flex-direction; column;
+  justify-content: center;
+  align-items: center;
+  border: solid 5px ${props => props.theme.palette.primary.main};
+  transition: opacity 0.2s ease-in-out;
+  border-radius: 3px;
+  width: 100%;
+  height: 100%;
+  margin-top: 3px;
+  z-index: ${props =>
+    props.transitionState !== 'entering' && props.transitionState !== 'entered'
+      ? -1
+      : 2};
+  backdrop-filter: blur(4px);
+  background: linear-gradient(
+    0deg,
+    rgba(0, 0, 0, .3) 40%,
+    rgba(0, 0, 0, .3) 40%
   );
-  await fse.remove(path.join(instancePath, 'mods', mod.fileName));
-};
+  opacity: ${({ transitionState }) =>
+    transitionState === 'entering' || transitionState === 'entered' ? 1 : 0};
+`;
+
+const StyledDropdown = styled.div`
+  width: 32px;
+  height: 32px;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease-in-out;
+  cursor: pointer;
+  &:hover {
+    background: ${props => props.theme.palette.grey[400]};
+  }
+`;
+
+export const keyFrameMoveUpDown = keyframes`
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+
+`;
+
+const DragArrow = styled(FontAwesomeIcon)`
+  ${props =>
+    props.fileDrag ? props.theme.palette.primary.main : 'transparent'};
+
+  color: ${props => props.theme.palette.primary.main};
+
+  animation: ${keyFrameMoveUpDown} 1.5s linear infinite;
+`;
+
+const CopyTitle = styled.h1`
+  ${props =>
+    props.fileDrag ? props.theme.palette.primary.main : 'transparent'};
+
+  color: ${props => props.theme.palette.primary.main};
+
+  animation: ${keyFrameMoveUpDown} 1.5s linear infinite;
+`;
 
 const deleteMods = async (
   instanceName,
@@ -138,16 +199,21 @@ const toggleModDisabled = async (
 
 const Row = memo(({ index, style, data }) => {
   const [loading, setLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const {
     items,
     instanceName,
     instancePath,
     gameVersion,
     selectedMods,
-    setSelectedMods
+    setSelectedMods,
+    latestMods
   } = data;
   const item = items[index];
+  const isUpdateAvailable =
+    latestMods[item.projectID] && latestMods[item.projectID].id !== item.fileID;
   const dispatch = useDispatch();
+
   return (
     <RowContainer index={index} override={style}>
       <div className="leftPartContent">
@@ -181,10 +247,40 @@ const Row = memo(({ index, style, data }) => {
         {item.fileName}
       </div>
       <div className="rightPartContent">
+        {isUpdateAvailable &&
+          (updateLoading ? (
+            <LoadingOutlined />
+          ) : (
+            <FontAwesomeIcon
+              css={`
+                &:hover {
+                  cursor: pointer;
+                  path {
+                    cursor: pointer;
+                    transition: all 0.1s ease-in-out;
+                    color: ${props => props.theme.palette.colors.green};
+                  }
+                }
+              `}
+              icon={faDownload}
+              onClick={async () => {
+                setUpdateLoading(true);
+                await dispatch(
+                  updateMod(
+                    instanceName,
+                    item,
+                    latestMods[item.projectID].id,
+                    gameVersion
+                  )
+                );
+                setUpdateLoading(false);
+              }}
+            />
+          ))}
         <Switch
           size="small"
           checked={path.extname(item.fileName) !== '.disabled'}
-          disabled={loading}
+          disabled={loading || updateLoading}
           onChange={async c => {
             setLoading(true);
             await toggleModDisabled(
@@ -198,7 +294,21 @@ const Row = memo(({ index, style, data }) => {
           }}
         />
         <FontAwesomeIcon
-          onClick={() => deleteMod(instanceName, instancePath, item, dispatch)}
+          css={`
+            &:hover {
+              cursor: pointer;
+              path {
+                cursor: pointer;
+                transition: all 0.1s ease-in-out;
+                color: ${props => props.theme.palette.error.main};
+              }
+            }
+          `}
+          onClick={() => {
+            if (!loading && !updateLoading) {
+              dispatch(deleteMod(instanceName, item));
+            }
+          }}
           icon={faTrash}
         />
       </div>
@@ -213,14 +323,16 @@ const createItemData = memoize(
     instancePath,
     gameVersion,
     selectedMods,
-    setSelectedMods
+    setSelectedMods,
+    latestMods
   ) => ({
     items,
     instanceName,
     instancePath,
     gameVersion,
     selectedMods,
-    setSelectedMods
+    setSelectedMods,
+    latestMods
   })
 );
 
@@ -237,14 +349,55 @@ const filter = (arr, search) =>
 const Mods = ({ instanceName }) => {
   const instance = useSelector(state => _getInstance(state)(instanceName));
   const instancesPath = useSelector(_getInstancesPath);
+  const latestMods = useSelector(state => state.latestModManifests);
   const [mods, setMods] = useState(sort(instance.mods));
   const [selectedMods, setSelectedMods] = useState([]);
   const [search, setSearch] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [fileDrag, setFileDrag] = useState(false);
+  const [fileDrop, setFileDrop] = useState(false);
+  const [numOfDraggedFiles, setNumOfDraggedFiles] = useState(0);
+  const [dragCompleted, setDragCompleted] = useState({});
+  const [dragCompletedPopulated, setDragCompletedPopulated] = useState(false);
+
   const dispatch = useDispatch();
+
+  const antIcon = (
+    <LoadingOutlined
+      css={`
+        font-size: 24px;
+      `}
+      spin
+    />
+  );
+
+  useEffect(() => {
+    const modList = instance.mods;
+
+    if (dragCompletedPopulated) {
+      const AllFilesAreCompleted = Object.keys(dragCompleted).every(x =>
+        modList.find(y => y.fileName === x)
+      );
+      setNumOfDraggedFiles(numOfDraggedFiles - 1);
+
+      if (AllFilesAreCompleted) {
+        setFileDrop(false);
+        setFileDrag(false);
+      }
+    }
+  }, [dragCompleted, instance.mods]);
 
   useEffect(() => {
     setMods(filter(sort(instance.mods), search));
   }, [search, instance.mods]);
+
+  const hasModUpdates = useMemo(() => {
+    return instance?.mods?.find(v => {
+      const isUpdateAvailable =
+        latestMods[v.projectID] && latestMods[v.projectID].id !== v.fileID;
+      return isUpdateAvailable;
+    });
+  }, [instance.mods, latestMods]);
 
   const itemData = createItemData(
     mods,
@@ -252,7 +405,98 @@ const Mods = ({ instanceName }) => {
     path.join(instancesPath, instanceName),
     instance.modloader[1],
     selectedMods,
-    setSelectedMods
+    setSelectedMods,
+    latestMods
+  );
+
+  const onDragOver = e => {
+    setFileDrag(true);
+    e.preventDefault();
+  };
+
+  const onDrop = async e => {
+    setFileDrop(true);
+    const dragComp = {};
+    const { files } = e.dataTransfer;
+    const arrTypes = Object.values(files).map(file => {
+      const fileName = file.name;
+      const fileType = fileName.split('.')[1];
+      return fileType;
+    });
+
+    await pMap(
+      Object.values(files),
+      async file => {
+        const fileName = file.name;
+        const fileType = fileName.split('.')[1];
+
+        dragComp[fileName] = false;
+
+        setNumOfDraggedFiles(files.length);
+
+        const { path: filePath } = file;
+
+        if (Object.values(files).length === 1) {
+          if (fileType === 'jar' || fileType === 'disabled') {
+            await fse.copy(
+              filePath,
+              path.join(instancesPath, instanceName, 'mods', fileName)
+            );
+            dragComp[fileName] = true;
+          } else {
+            console.error('This file is not a mod!');
+            setFileDrop(false);
+            setFileDrag(false);
+          }
+        } else {
+          /* eslint-disable */
+          if (arrTypes.includes('jar')) {
+            if (fileType === 'jar') {
+              await fse.copy(
+                filePath,
+                path.join(instancesPath, instanceName, 'mods', fileName)
+              );
+              dragComp[fileName] = true;
+            } else {
+              setFileDrop(false);
+              setFileDrag(false);
+            }
+          } else {
+            console.error('The files are  not a mod!');
+            setFileDrop(false);
+            setFileDrag(false);
+          }
+        }
+      },
+      { concurrency: 10 }
+    );
+    setDragCompletedPopulated(files.length === Object.values(dragComp).length);
+    setDragCompleted(dragComp);
+  };
+
+  const onDragEnter = e => {
+    setFileDrag(true);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const onDragLeave = () => {
+    setFileDrag(false);
+  };
+
+  const menu = (
+    <Menu>
+      <Menu.Item
+        key="0"
+        onClick={async () => {
+          dispatch(openModal('ModsUpdater', { instanceName }));
+          setIsMenuOpen(false);
+        }}
+        disabled={!hasModUpdates}
+      >
+        Update all mods
+      </Menu.Item>
+    </Menu>
   );
 
   return (
@@ -297,7 +541,7 @@ const Mods = ({ instanceName }) => {
             }}
             selectedMods={selectedMods}
             css={`
-              margin-left: 10px;
+              margin: 0 10px;
               ${props =>
                 props.selectedMods.length > 0 &&
                 `&:hover {
@@ -311,12 +555,22 @@ const Mods = ({ instanceName }) => {
             `}
             icon={faTrash}
           />
-          {/* <FontAwesomeIcon
-            css={`
-              margin-left: 10px;
-            `}
-            icon={faDownload}
-          /> */}
+          <StyledDropdown
+            onClick={() => {
+              if (!isMenuOpen) {
+                setIsMenuOpen(true);
+              }
+            }}
+          >
+            <Dropdown
+              overlay={menu}
+              visible={isMenuOpen}
+              onVisibleChange={setIsMenuOpen}
+              trigger={['click']}
+            >
+              <FontAwesomeIcon icon={faEllipsisV} />
+            </Dropdown>
+          </StyledDropdown>
         </div>
         <Button
           type="primary"
@@ -343,11 +597,46 @@ const Mods = ({ instanceName }) => {
         />
       </Header>
       <div
+        onDragEnter={onDragEnter}
         css={`
           width: 100%;
           height: calc(100% - 40px);
         `}
       >
+        <Transition timeout={300} in={fileDrag}>
+          {transitionState => (
+            <DragEnterEffect
+              onDrop={onDrop}
+              transitionState={transitionState}
+              onDragLeave={onDragLeave}
+              fileDrag={fileDrag}
+              onDragOver={onDragOver}
+            >
+              {fileDrop ? (
+                <Spin
+                  indicator={antIcon}
+                  css={`
+                    width: 30px;
+                  `}
+                >
+                  {numOfDraggedFiles > 0 ? numOfDraggedFiles : 1}
+                </Spin>
+              ) : (
+                <div
+                  css={`
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                  `}
+                  onDragLeave={e => e.stopPropagation()}
+                >
+                  <CopyTitle>copy</CopyTitle>
+                  <DragArrow icon={faArrowDown} size="3x" />
+                </div>
+              )}
+            </DragEnterEffect>
+          )}
+        </Transition>
         <AutoSizer>
           {({ height, width }) => (
             <List

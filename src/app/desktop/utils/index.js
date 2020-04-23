@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import originalFs from 'original-fs';
 import fse from 'fs-extra';
 import { extractFull } from 'node-7z';
 import jimp from 'jimp/es';
@@ -7,8 +8,13 @@ import jarAnalyzer from 'jarfile';
 import { promisify } from 'util';
 import { ipcRenderer } from 'electron';
 import path from 'path';
+import crypto from 'crypto';
 import { exec, spawn } from 'child_process';
-import { MC_LIBRARIES_URL } from '../../../common/utils/constants';
+import {
+  MC_LIBRARIES_URL,
+  FABRIC,
+  FORGE
+} from '../../../common/utils/constants';
 import { removeDuplicates } from '../../../common/utils';
 import { getAddonFile, mcGetPlayerSkin } from '../../../common/api';
 import { downloadFile } from './downloader';
@@ -26,14 +32,14 @@ export const getDirectories = async source => {
   );
 };
 
-export const mavenToArray = (s, nativeString) => {
+export const mavenToArray = (s, nativeString, forceExt) => {
   const pathSplit = s.split(':');
   const fileName = pathSplit[3]
     ? `${pathSplit[2]}-${pathSplit[3]}`
     : pathSplit[2];
   const finalFileName = fileName.includes('@')
     ? fileName.replace('@', '.')
-    : `${fileName}${nativeString || ''}.jar`;
+    : `${fileName}${nativeString || ''}${forceExt || '.jar'}`;
   const initPath = pathSplit[0]
     .split('.')
     .concat(pathSplit[1])
@@ -99,8 +105,15 @@ export const librariesMapper = (libraries, librariesPath) => {
         const tempArr = [];
         // Normal libs
         if (lib.downloads && lib.downloads.artifact) {
+          let { url } = lib.downloads.artifact;
+          // Handle special case for forge universal where the url is "".
+          if (lib.downloads.artifact.url === '') {
+            url = `https://files.minecraftforge.net/maven/${mavenToArray(
+              lib.name
+            ).join('/')}`;
+          }
           tempArr.push({
-            url: lib.downloads.artifact.url,
+            url,
             path: path.join(librariesPath, lib.downloads.artifact.path),
             sha1: lib.downloads.artifact.sha1
           });
@@ -143,11 +156,11 @@ export const librariesMapper = (libraries, librariesPath) => {
   );
 };
 
-export const isLatestJavaDownloaded = async (meta, dataPath) => {
+export const isLatestJavaDownloaded = async (meta, userData) => {
   const javaOs = convertOSToJavaFormat(process.platform);
   const javaMeta = meta.find(v => v.os === javaOs);
   const javaFolder = path.join(
-    dataPath,
+    userData,
     'java',
     javaMeta.version_data.openjdk_version
   );
@@ -170,7 +183,8 @@ export const isLatestJavaDownloaded = async (meta, dataPath) => {
 };
 
 export const get7zPath = async () => {
-  const baseDir = await ipcRenderer.invoke('getUserDataPath');
+  // Get userData from ipc because we can't always get this from redux
+  const baseDir = await ipcRenderer.invoke('getUserData');
   if (process.platform === 'darwin') {
     return path.join(baseDir, '7za-osx');
   }
@@ -286,6 +300,7 @@ export const getJVMArguments112 = (
   args.push(`-Xms${memory}m`);
   args.push(...jvmOptions);
   args.push(`-Djava.library.path="${path.join(instancePath, 'natives')}"`);
+  args.push(`-Dminecraft.applet.TargetDirectory="${instancePath}"`);
 
   args.push(mcJson.mainClass);
 
@@ -457,24 +472,24 @@ export const getJVMArguments113 = (
 };
 
 export const patchForge113 = async (
-  installProfileJson,
+  forgeJson,
   mainJar,
   librariesPath,
   javaPath,
   updatePercentage
 ) => {
-  const { processors } = installProfileJson;
+  const { processors } = forgeJson;
   const replaceIfPossible = arg => {
     const finalArg = arg.replace('{', '').replace('}', '');
-    if (installProfileJson.data[finalArg]) {
+    if (forgeJson.data[finalArg]) {
       // Handle special case
       if (finalArg === 'BINPATCH') {
         return `"${path
-          .join(librariesPath, ...mavenToArray(installProfileJson.path))
+          .join(librariesPath, ...mavenToArray(forgeJson.path))
           .replace('.jar', '-clientdata.lzma')}"`;
       }
       // Return replaced string
-      return installProfileJson.data[finalArg].client;
+      return forgeJson.data[finalArg].client;
     }
     // Return original string (checking for MINECRAFT_JAR)
     return arg.replace('{MINECRAFT_JAR}', `"${mainJar}"`);
@@ -505,15 +520,12 @@ export const patchForge113 = async (
 
       const jarFile = await promisify(jarAnalyzer.fetchJarAtPath)(filePath);
       const mainClass = jarFile.valueForManifestEntry('Main-Class');
-
       await new Promise(resolve => {
         const ps = spawn(
           `"${javaPath}"`,
           [
             '-classpath',
-            [`"${filePath}"`, ...classPaths].join(
-              process.platform === 'win32' ? ';' : ':'
-            ),
+            [`"${filePath}"`, ...classPaths].join(path.delimiter),
             mainClass,
             ...args
           ],
@@ -642,13 +654,23 @@ export const reflect = p =>
     e => ({ e, status: false })
   );
 
+export const convertCompletePathToInstance = (f, instancesPath) => {
+  const escapeRegExp = stringToGoIntoTheRegex => {
+    return stringToGoIntoTheRegex.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  };
+
+  return f.replace(new RegExp(escapeRegExp(instancesPath), 'gi'), '');
+};
+
 export const isMod = (fileName, instancesPath) =>
   /^(\\|\/)([\w\d-.{}()[\]@#$%^&!\s])+((\\|\/)mods((\\|\/)(.*))(\.jar|\.disabled))$/.test(
-    fileName.replace(instancesPath, '')
+    convertCompletePathToInstance(fileName, instancesPath)
   );
 
 export const isInstanceFolderPath = (f, instancesPath) =>
-  /^(\\|\/)([\w\d-.{}()[\]@#$%^&!\s])+$/.test(f.replace(instancesPath, ''));
+  /^(\\|\/)([\w\d-.{}()[\]@#$%^&!\s])+$/.test(
+    convertCompletePathToInstance(f, instancesPath)
+  );
 
 export const isFileModFabric = file => {
   return (
@@ -670,9 +692,7 @@ export const filterFabricFilesByVersion = (files, version) => {
 export const filterForgeFilesByVersion = (files, version) => {
   return files.filter(v => {
     if (Array.isArray(v.gameVersion)) {
-      return (
-        v.gameVersion.includes(version) && !v.gameVersion.includes('Fabric')
-      );
+      return v.gameVersion.includes(version) && !isFileModFabric(v);
     }
     return v.gameVersion === version;
   });
@@ -690,4 +710,55 @@ export const getFirstReleaseCandidate = files => {
     counter += 1;
   }
   return latestFile;
+};
+
+export const getFileHash = async (filePath, algorithm = 'sha1') => {
+  // Calculate sha1 on original file
+  const shasum = crypto.createHash(algorithm);
+
+  const s = originalFs.ReadStream(filePath);
+  s.on('data', data => {
+    shasum.update(data);
+  });
+
+  const hash = await new Promise(resolve => {
+    s.on('end', () => {
+      resolve(shasum.digest('hex'));
+    });
+  });
+  return hash;
+};
+
+export const getFilesRecursive = async dir => {
+  const subdirs = await originalFs.promises.readdir(dir);
+  const files = await Promise.all(
+    subdirs.map(async subdir => {
+      const res = path.resolve(dir, subdir);
+      return (await originalFs.promises.stat(res)).isDirectory()
+        ? getFilesRecursive(res)
+        : res;
+    })
+  );
+  return files.reduce((a, f) => a.concat(f), []);
+};
+
+export const convertcurseForgeToCanonical = (
+  curseForge,
+  mcVersion,
+  forgeManifest
+) => {
+  const patchedCurseForge = curseForge.replace('forge-', '');
+  const forgeEquivalent = forgeManifest[mcVersion].find(v => {
+    return v.split('-')[1] === patchedCurseForge;
+  });
+  return forgeEquivalent;
+};
+
+export const getPatchedInstanceType = instance => {
+  const isForge = instance.modloader[0] === FORGE;
+  const hasJumpLoader = (instance.mods || []).find(v => v.projectID === 361988);
+  if (isForge && !hasJumpLoader) {
+    return FORGE;
+  }
+  return FABRIC;
 };

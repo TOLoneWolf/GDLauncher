@@ -1,4 +1,4 @@
-import omit from 'lodash.omit';
+import omit from 'lodash/omit';
 import * as ActionTypes from './actionTypes';
 import PromiseQueue from '../../app/desktop/utils/PromiseQueue';
 
@@ -6,6 +6,15 @@ function news(state = [], action) {
   switch (action.type) {
     case ActionTypes.UPDATE_NEWS:
       return action.news;
+    default:
+      return state;
+  }
+}
+
+function userData(state = null, action) {
+  switch (action.type) {
+    case ActionTypes.UPDATE_USERDATA:
+      return action.path;
     default:
       return state;
   }
@@ -138,12 +147,25 @@ function updateAvailable(state = false, action) {
   }
 }
 
+function latestModManifests(state = {}, action) {
+  switch (action.type) {
+    case ActionTypes.UPDATE_MOD_MANIFESTS:
+      return { ...state, ...action.manifests };
+    case ActionTypes.CLEAR_MOD_MANIFESTS:
+      return {};
+    default:
+      return state;
+  }
+}
+
 export default {
+  userData,
   news,
   downloadQueue,
   currentDownload,
   instances,
   startedInstances,
   selectedInstance,
-  updateAvailable
+  updateAvailable,
+  latestModManifests
 };

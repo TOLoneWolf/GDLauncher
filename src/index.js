@@ -12,6 +12,7 @@ import RootElectron from './Root-Electron';
 import ModalsManager from './common/components/ModalsManager';
 
 import 'typeface-roboto';
+import ErrorBoundary from './app/desktop/ErrorBoundary';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -25,15 +26,17 @@ const ThemeProvider = ({ theme: themeUI, children }) => {
 
 const { store, persistor } = configureStore();
 
-if (isDev) window.__store = store;
+window.__store = store;
 
 ReactDOM.render(
   <Provider store={store}>
     <PersistGate loading={null} persistor={persistor}>
       <ThemeProvider theme={theme}>
         <ConnectedRouter history={history}>
-          <ModalsManager />
-          <Root history={history} store={store} persistor={persistor} />
+          <ErrorBoundary>
+            <ModalsManager />
+            <Root history={history} store={store} persistor={persistor} />
+          </ErrorBoundary>
         </ConnectedRouter>
       </ThemeProvider>
     </PersistGate>

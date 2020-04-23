@@ -18,12 +18,14 @@ export default createGlobalStyle`
     font-style: normal;
     font-weight: 500;
   }
+
   @font-face {
     font-family: "FF Mark W05";
     src: url(${FFMarkW05BoldWoff2}) format("woff2");
     font-style: normal;
     font-weight: 700;
   }
+  
   @font-face {
     font-family: "FF Mark W05";
     src: url(${FFMarkW05HeavyWoff2}) format("woff2");
@@ -141,20 +143,22 @@ export default createGlobalStyle`
     cursor: pointer;
     font-weight: 400;
     line-height: 1.5;
-    padding: 4px 10px;
+    padding: 8px 10px;
     text-align: left;
     white-space: nowrap;
     span {
       color: ${props => props.theme.palette.text.primary};
       width: 25px;
-  
     }
   }
-  
-  .react-contextmenu-item.react-contextmenu-item--active,
-  .react-contextmenu-item.react-contextmenu-item--selected,
-  .react-contextmenu-item:hover{
-    background-color: ${props => props.theme.palette.grey[800]};
+
+  .react-contextmenu-item:not(.react-contextmenu-item--divider):hover{
+    background: ${({ theme }) => theme.palette.grey[500]};
+    text-decoration: none;
+  }
+
+  .react-contextmenu-item:not(.react-contextmenu-item--divider):active{
+    background: ${({ theme }) => theme.palette.grey[400]};
     text-decoration: none;
   }
 
@@ -169,9 +173,17 @@ export default createGlobalStyle`
   }
   
   .react-contextmenu-item--divider {
-    border-bottom: 1px solid ${props => props.theme.palette.grey[300]};
+    border-bottom: 1px solid ${props => props.theme.palette.grey[400]};
     cursor: inherit;
     margin-bottom: 3px;
     padding: 2px 0;
   }
+
+
+  @keyframes modalShake {
+    0% { transform: scale(1.01) }
+    30% { transform: scale(0.99) }
+    60% { transform: scale(1.01) }
+    90% { transform: scale(0.99)}
+    100% {transform: scale(1) }
 `;

@@ -3,13 +3,13 @@ import * as ActionTypes from './actionTypes';
 export default function modals(state = [], action) {
   switch (action.type) {
     case ActionTypes.OPEN_MODAL:
-      if (!state.find((x => x.modalType: action.modalType))) {
+      if (!state.find(x => x.modalType === action.modalType)) {
         return state.concat({
           modalType: action.modalType,
           modalProps: action.modalProps
         });
       }
-      console.error('A modal of the same type already exist!');
+      console.warn('A modal of the same type already exists!');
       return state;
     case ActionTypes.UPDATE_MODAL:
       return action.modals;

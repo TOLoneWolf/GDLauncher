@@ -3,19 +3,17 @@ import styled from 'styled-components';
 import { ipcRenderer, clipboard } from 'electron';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { push } from 'connected-react-router';
 import fsa from 'fs-extra';
 import {
   faCopy,
   faDownload,
-  faFolder,
-  faUndoAlt,
   faTachometerAlt,
   faTrash,
   faPlay,
-  faToilet
+  faToilet,
+  faNewspaper
 } from '@fortawesome/free-solid-svg-icons';
-import { Select, Tooltip, Button, Switch, Input } from 'antd';
+import { Select, Tooltip, Button, Switch } from 'antd';
 import { faDiscord } from '@fortawesome/free-brands-svg-icons';
 import {
   _getCurrentAccount,
@@ -26,9 +24,9 @@ import {
 import {
   updateReleaseChannel,
   updateDiscordRPC,
-  updateDataPath,
   updateHideWindowOnGameLaunch,
-  updatePotatoPcMode
+  updatePotatoPcMode,
+  updateShowNews
 } from '../../../reducers/settings/actions';
 import HorizontalLogo from '../../../../ui/HorizontalLogo';
 import { updateConcurrentDownloads } from '../../../reducers/actions';
@@ -76,24 +74,26 @@ const ImagePlaceHolder = styled.div`
 `;
 
 const UsernameContainer = styled.div`
-  float: left;
-  display: inline-block;
   text-align: left;
 `;
 
-const EmailContainer = styled.div`
-  float: left;
-  display: inline-block;
+const UuidContainer = styled.div`
   text-align: left;
   margin-left: 8px;
 `;
 
-const Username = styled.div`
+const Uuid = styled.div`
+  font-size: smaller;
+  font-weight: 200;
   color: ${props => props.theme.palette.grey[100]};
+  display: flex;
 `;
 
-const Email = styled.div`
+const Username = styled.div`
+  font-size: smaller;
+  font-weight: 200;
   color: ${props => props.theme.palette.grey[100]};
+  display: flex;
 `;
 
 const PersonalDataContainer = styled.div`
@@ -123,6 +123,7 @@ const ReleaseChannel = styled.div`
   div {
     display: flex;
     flex-direction: row;
+    align-items: center;
     justify-content: space-between;
   }
 `;
@@ -131,6 +132,7 @@ const ParallelDownload = styled.div`
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
   width: 100%;
   height: 60px;
   p {
@@ -149,22 +151,6 @@ const DiscordRpc = styled.div`
     text-align: left;
     color: ${props => props.theme.palette.text.third};
   }
-`;
-
-const OverridePath = styled.div`
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  p {
-    text-align: left;
-    color: ${props => props.theme.palette.text.third};
-  }
-`;
-
-const DataPath = styled.div`
-  width: 100%;
-  height: 40px;
 `;
 
 const LauncherVersion = styled.div`
@@ -188,16 +174,20 @@ function copy(setCopied, copyText) {
   }, 500);
 }
 
-const openFolderDialog = async (InstancesPath, dispatch) => {
-  const paths = await ipcRenderer.invoke('openFolderDialog', InstancesPath);
-  if (!paths.filePaths[0]) return;
-  dispatch(updateDataPath(paths.filePaths[0]));
-};
+function dashUuid(UUID) {
+  // UUID is segmented into: 8 - 4 - 4 - 4 - 12
+  // Then dashes are added between.
+
+  // eslint-disable-next-line
+  return `${UUID.substring(0, 8)}-${UUID.substring(8, 12)}-${UUID.substring(
+    12,
+    16
+  )}-${UUID.substring(16, 20)}-${UUID.substring(20, 32)}`;
+}
 
 const General = () => {
   const [version, setVersion] = useState(null);
   const currentAccount = useSelector(_getCurrentAccount);
-  const dataPath = useSelector(state => state.settings.dataPath);
   const releaseC = useSelector(state => state.settings.releaseChannel);
   const hideWindowOnGameLaunch = useSelector(
     state => state.settings.hideWindowOnGameLaunch
@@ -213,10 +203,10 @@ const General = () => {
   const isPlaying = useSelector(state => state.startedInstances);
   const queuedInstances = useSelector(state => state.downloadQueue);
   const tempPath = useSelector(_getTempPath);
-  const [copiedEmail, setCopiedEmail] = useState(false);
-  const [copiedUsername, setCopiedUsername] = useState(false);
+  const [copiedUuid, setCopiedUuid] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [deletingInstances, setDeletingInstances] = useState(false);
+  const showNews = useSelector(state => state.settings.showNews);
 
   const dispatch = useDispatch();
 
@@ -241,11 +231,6 @@ const General = () => {
     setDeletingInstances(false);
   };
 
-  const resetDataPath = async () => {
-    const appdataPath = await ipcRenderer.invoke('getUserDataPath');
-    dispatch(updateDataPath(appdataPath));
-  };
-
   return (
     <MyAccountPrf>
       <PersonalData>
@@ -258,70 +243,41 @@ const General = () => {
           )}
           <div
             css={`
-              display: inline-block;
               margin: 20px 20px 20px 40px;
-              width: 250px;
+              width: 330px;
             `}
           >
             <UsernameContainer>
-              Username
+              Username <br />
+              <Username>{currentAccount.selectedProfile.name}</Username>
+            </UsernameContainer>
+            <UuidContainer>
+              UUID
               <br />
-              <Username>
-                {currentAccount.selectedProfile.name}{' '}
-                <Tooltip
-                  title={copiedUsername ? 'copied' : 'copy'}
-                  placement="top"
-                >
+              <Uuid>
+                {dashUuid(currentAccount.selectedProfile.id)}
+                <Tooltip title={copiedUuid ? 'Copied' : 'Copy'} placement="top">
                   <div
                     css={`
                       width: 13px;
                       height: 14px;
                       margin: 0;
-                      margin-left: 4px;
-                      float: right;
+                      margin-left: 10px;
                     `}
                   >
                     <FontAwesomeIcon
                       icon={faCopy}
                       onClick={() =>
                         copy(
-                          setCopiedUsername,
-                          currentAccount.selectedProfile.name
+                          setCopiedUuid,
+                          dashUuid(currentAccount.selectedProfile.id)
                         )
                       }
                     />
                   </div>
                 </Tooltip>
-              </Username>
-            </UsernameContainer>
-            <EmailContainer>
-              Email
-              <br />
-              <Email>
-                {currentAccount.user.username}
-                <Tooltip
-                  title={copiedEmail ? 'copied' : 'copy'}
-                  placement="top"
-                >
-                  <div
-                    css={`
-                      width: 13px;
-                      height: 14px;
-                      margin: 0;
-                      margin-left: 4px;
-                      float: right;
-                    `}
-                  >
-                    <FontAwesomeIcon
-                      icon={faCopy}
-                      onClick={() =>
-                        copy(setCopiedEmail, currentAccount.user.username)
-                      }
-                    />
-                  </div>
-                </Tooltip>
-              </Email>
-            </EmailContainer>
+              </Uuid>
+            </UuidContainer>
           </div>
         </PersonalDataContainer>
       </PersonalData>
@@ -374,6 +330,7 @@ const General = () => {
           value={concurrentDownloads}
           css={`
             width: 100px;
+            text-align: start;
           `}
         >
           {[...Array(20).keys()]
@@ -409,6 +366,29 @@ const General = () => {
             }
           }}
           checked={DiscordRPC}
+        />
+      </DiscordRpc>
+      <Hr />
+      <Title
+        css={`
+          margin-top: 0px;
+        `}
+      >
+        Minecraft News &nbsp; <FontAwesomeIcon icon={faNewspaper} />
+      </Title>
+      <DiscordRpc>
+        <p
+          css={`
+            width: 350px;
+          `}
+        >
+          Enable / disable Minecraft news.
+        </p>
+        <Switch
+          onChange={e => {
+            dispatch(updateShowNews(e));
+          }}
+          checked={showNews}
         />
       </DiscordRpc>
       <Hr />
@@ -507,58 +487,6 @@ const General = () => {
         </Button>
       </div>
       <Hr />
-      <Title
-        css={`
-          width: 250px;
-        `}
-      >
-        Data Path&nbsp; <FontAwesomeIcon icon={faFolder} />
-      </Title>
-      <OverridePath>
-        <p
-          css={`
-            margin: 0;
-            height: 40px;
-            width: 100%;
-          `}
-        >
-          Select a custom data path. Most of the launcher data will be stored
-          here
-        </p>
-      </OverridePath>
-      <DataPath>
-        <div
-          css={`
-            margin-top: 20px;
-            width: 100%;
-            display: flex;
-
-            input {
-              margin-right: 5px;
-            }
-
-            button {
-              margin: 0 5px;
-            }
-          `}
-        >
-          <Input
-            onChange={e => dispatch(updateDataPath(e.target.value))}
-            value={dataPath}
-            disabled={disableInstancesActions}
-          />
-          <Button
-            onClick={() => openFolderDialog(dataPath, dispatch)}
-            disabled={disableInstancesActions}
-          >
-            <FontAwesomeIcon icon={faFolder} />
-          </Button>
-          <Button onClick={resetDataPath} disabled={disableInstancesActions}>
-            <FontAwesomeIcon icon={faUndoAlt} />
-          </Button>
-        </div>
-      </DataPath>
-      <Hr />
       <LauncherVersion>
         <div
           css={`
@@ -592,11 +520,11 @@ const General = () => {
         >
           {updateAvailable ? (
             <Button
-              onClick={() => dispatch(push('/autoUpdate'))}
+              onClick={() =>
+                ipcRenderer.invoke('installUpdateAndQuitOrRestart')
+              }
               css={`
-                && {
-                  margin-right: 10px;
-                }
+                margin-right: 10px;
               `}
               type="primary"
             >

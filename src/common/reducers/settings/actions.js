@@ -18,21 +18,20 @@ export function updateReleaseChannel(releaseChannel) {
   };
 }
 
-export function updateDataPath(path) {
-  return dispatch => {
-    dispatch({
-      type: ActionTypes.UPDATE_DATA_PATH,
-      path
-    });
-    return path;
-  };
-}
-
 export function updateHideWindowOnGameLaunch(hideWindow) {
   return dispatch => {
     dispatch({
       type: ActionTypes.HIDE_WINDOW_ON_GAME_LAUNCH,
       hideWindow
+    });
+  };
+}
+
+export function updateShowNews(value) {
+  return dispatch => {
+    dispatch({
+      type: ActionTypes.UPDATE_SHOW_NEWS,
+      value
     });
   };
 }

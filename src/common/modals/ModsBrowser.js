@@ -17,7 +17,8 @@ import { FABRIC, FORGE } from '../utils/constants';
 import {
   getFirstReleaseCandidate,
   filterFabricFilesByVersion,
-  filterForgeFilesByVersion
+  filterForgeFilesByVersion,
+  getPatchedInstanceType
 } from '../../app/desktop/utils';
 
 const CellContainer = styled.div.attrs(props => ({
@@ -75,9 +76,9 @@ const Cell = ({
   items,
   version,
   installedMods,
-  instanceName,
-  modloader
+  instanceName
 }) => {
+  const instance = useSelector(state => _getInstance(state)(instanceName));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const dispatch = useDispatch();
@@ -136,8 +137,8 @@ const Cell = ({
                   e.stopPropagation();
                   const files = (await getAddonFiles(mod?.id)).data;
 
-                  const isFabric = modloader[0] === FABRIC;
-                  const isForge = modloader[0] === FORGE;
+                  const isFabric = getPatchedInstanceType(instance) === FABRIC;
+                  const isForge = getPatchedInstanceType(instance) === FORGE;
 
                   let filteredFiles = [];
 
@@ -196,8 +197,7 @@ const ModsListWrapper = ({
   instance,
   version,
   installedMods,
-  instanceName,
-  modloader
+  instanceName
 }) => {
   // If there are more items to be loaded then add an extra row to hold a loading indicator.
   const itemCount = hasNextPage ? items.length + 3 : items.length;
@@ -271,7 +271,6 @@ const ModsListWrapper = ({
               isNextPageLoading={isNextPageLoading}
               installedMods={installedMods}
               instanceName={instanceName}
-              modloader={modloader}
               // eslint-disable-next-line
               {...p}
             />
@@ -324,7 +323,7 @@ const ModsBrowser = ({ instanceName, gameVersion }) => {
       filterType,
       filterType !== 'Author' && filterType !== 'Name',
       gameVersion,
-      instance.modloader[0] === FABRIC ? 4780 : null
+      getPatchedInstanceType(instance) === FABRIC ? 4780 : null
     );
     const newMods = reset ? data : mods.concat(data);
     if (lastRequest === reqObj) {
@@ -346,6 +345,10 @@ const ModsBrowser = ({ instanceName, gameVersion }) => {
       <Container>
         <Header>
           <Select
+            css={`
+              width: 130px;
+              margin: 0 10px;
+            `}
             defaultValue={filterType}
             onChange={setFilterType}
             disabled={areModsLoading}
@@ -383,7 +386,6 @@ const ModsBrowser = ({ instanceName, gameVersion }) => {
               version={gameVersion}
               installedMods={installedMods}
               instanceName={instanceName}
-              modloader={instance.modloader}
             />
           )}
         </AutoSizer>
@@ -403,11 +405,7 @@ const Header = styled.div`
   width: 100%;
   height: 50px;
   display: flex;
+  flex-direction: row;
+  justify-content: space-around;
   align-items: center;
-  *:not(:last-child) {
-    margin-right: 15px;
-  }
-  *:first-child {
-    margin-left: 5px;
-  }
 `;

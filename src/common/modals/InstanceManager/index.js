@@ -1,5 +1,5 @@
 /* eslint-disable */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Button } from 'antd';
 import Modal from '../../components/Modal';
@@ -7,9 +7,14 @@ import Overview from './Overview';
 import Screenshots from './Screenshots';
 import Notes from './Notes';
 import Mods from './Mods';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { _getInstance } from '../../utils/selectors';
 import { FORGE, FABRIC } from '../../utils/constants';
+import Modpack from './Modpack';
+import {
+  initLatestMods,
+  clearLatestModManifests
+} from '../../reducers/actions';
 
 const SideMenu = styled.div`
   display: flex;
@@ -67,22 +72,32 @@ const Content = styled.div`
   position: relative;
 `;
 
+const menuEntries = {
+  overview: { name: 'Overview', component: Overview },
+  mods: { name: 'Mods', component: Mods },
+  modpack: { name: 'Modpack', component: Modpack },
+  notes: { name: 'Notes', component: Notes },
+  // resourcePacks: { name: "Resource Packs", component: Overview },
+  // worlds: { name: "Worlds", component: Overview },
+  screenshots: { name: 'Screenshots', component: Screenshots }
+  // settings: { name: "Settings", component: Overview },
+  // servers: { name: "Servers", component: Overview }
+};
 const InstanceManager = ({ instanceName }) => {
-  const menuEntries = {
-    overview: { name: 'Overview', component: Overview },
-    mods: { name: 'Mods', component: Mods },
-    modpack: { name: 'Modpack', component: Overview },
-    notes: { name: 'Notes', component: Notes },
-    // resourcePacks: { name: "Resource Packs", component: Overview },
-    // worlds: { name: "Worlds", component: Overview },
-    screenshots: { name: 'Screenshots', component: Screenshots }
-    // settings: { name: "Settings", component: Overview },
-    // servers: { name: "Servers", component: Overview }
-  };
-
+  const dispatch = useDispatch();
   const [page, setPage] = useState(Object.keys(menuEntries)[0]);
   const instance = useSelector(state => _getInstance(state)(instanceName));
   const ContentComponent = menuEntries[page].component;
+
+  useEffect(() => {
+    dispatch(clearLatestModManifests());
+  }, []);
+
+  useEffect(() => {
+    if (instance?.name) {
+      dispatch(initLatestMods(instance.name));
+    }
+  }, [instance?.mods]);
 
   return (
     <Modal
@@ -103,7 +118,7 @@ const InstanceManager = ({ instanceName }) => {
                   instance?.modloader[0] !== FORGE &&
                   instance?.modloader[0] !== FABRIC) ||
                 (tab.name === menuEntries.modpack.name &&
-                  (!instance?.modloader[3] || !instance?.modloader[4]))
+                  !instance?.modloader[3])
               ) {
                 return null;
               }
@@ -120,7 +135,10 @@ const InstanceManager = ({ instanceName }) => {
           </SideMenu>
         </SideMenuContainer>
         <Content>
-          <ContentComponent instanceName={instanceName} />
+          <ContentComponent
+            instanceName={instanceName}
+            modpackId={instance?.modloader[3]}
+          />
         </Content>
       </Container>
     </Modal>

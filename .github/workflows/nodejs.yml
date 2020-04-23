@@ -1,7 +1,12 @@
 name: GDLauncher Next CI
 
-on: [push, pull_request]
-
+on:
+  push:
+    branches:
+      - next
+  pull_request:
+    branches:
+      - next
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -29,26 +34,33 @@ jobs:
         run: |
           yarn lint
       - name: yarn release
+        env:
+          CI: ''
+          TRAVIS_TAG: ''
+          APPVEYOR_REPO_TAG_NAME: ''
+          CIRCLE_TAG: ''
+          BITRISE_GIT_TAG: ''
+          CI_BUILD_TAG: ''
+          RELEASE_TESTING: true
         run: |
           yarn release
-
       - uses: actions/upload-artifact@v1
         if: matrix.os == 'macos-latest'
         with:
           name: MacOs Release
-          path: release/GDLauncher-mac-setup.dmg
+          path: deploy
 
       - uses: actions/upload-artifact@v1
         if: matrix.os == 'windows-latest'
         with:
           name: Windows Release
-          path: release/GDLauncher-win-setup.exe
+          path: deploy
 
       - uses: actions/upload-artifact@v1
         if: matrix.os == 'ubuntu-latest'
         with:
           name: Linux Release
-          path: release/GDLauncher-linux-setup.AppImage
+          path: deploy
 
       - uses: actions/setup-ruby@v1
       - name: Send Webhook Notification

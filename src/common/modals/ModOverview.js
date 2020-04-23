@@ -1,23 +1,24 @@
 /* eslint-disable */
-import React, { useState, useEffect } from "react";
-import styled from "styled-components";
-import { useDispatch, useSelector } from "react-redux";
-import ReactHtmlParser from "react-html-parser";
-import path from "path";
-import { Checkbox, TextField, Cascader, Button, Input, Select } from "antd";
-import Modal from "../components/Modal";
-import { transparentize } from "polished";
-import { getAddonDescription, getAddonFiles, getAddon } from "../api";
-import CloseButton from "../components/CloseButton";
-import { closeModal } from "../reducers/modals/actions";
-import { installMod, updateInstanceConfig } from "../reducers/actions";
-import { remove } from "fs-extra";
-import { _getInstancesPath, _getInstance } from "../utils/selectors";
-import { FABRIC, FORGE } from "../utils/constants";
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { useDispatch, useSelector } from 'react-redux';
+import ReactHtmlParser from 'react-html-parser';
+import path from 'path';
+import { Checkbox, TextField, Cascader, Button, Input, Select } from 'antd';
+import Modal from '../components/Modal';
+import { transparentize } from 'polished';
+import { getAddonDescription, getAddonFiles, getAddon } from '../api';
+import CloseButton from '../components/CloseButton';
+import { closeModal } from '../reducers/modals/actions';
+import { installMod, updateInstanceConfig } from '../reducers/actions';
+import { remove } from 'fs-extra';
+import { _getInstancesPath, _getInstance } from '../utils/selectors';
+import { FABRIC, FORGE } from '../utils/constants';
 import {
   filterFabricFilesByVersion,
-  filterForgeFilesByVersion
-} from "../../app/desktop/utils";
+  filterForgeFilesByVersion,
+  getPatchedInstanceType
+} from '../../app/desktop/utils';
 
 const ModOverview = ({
   projectID,
@@ -42,8 +43,10 @@ const ModOverview = ({
     getAddon(projectID).then(data => setAddon(data.data));
     getAddonDescription(projectID).then(data => setDescription(data.data));
     getAddonFiles(projectID).then(data => {
-      const isFabric = instance.modloader[0] === FABRIC;
-      const isForge = instance.modloader[0] === FORGE;
+      const isFabric =
+        getPatchedInstanceType(instance) === FABRIC && projectID !== 361988;
+      const isForge =
+        getPatchedInstanceType(instance) === FORGE || projectID === 361988;
       let filteredFiles = [];
       if (isFabric) {
         filteredFiles = filterFabricFilesByVersion(data.data, gameVersion);
@@ -57,11 +60,11 @@ const ModOverview = ({
 
   const getPlaceholderText = () => {
     if (loadingFiles) {
-      return "Loading Files";
+      return 'Loading Files';
     } else if (files.length === 0 && !loadingFiles) {
-      return "Mod Not Available";
+      return 'Mod Not Available';
     } else {
-      return "Select A Version";
+      return 'Select A Version';
     }
   };
 
@@ -188,13 +191,17 @@ const ModOverview = ({
                   </div>
                   <div
                     css={`
-                      flex: 2;
+                      flex: 3;
                       display: flex;
                       align-items: center;
                     `}
                   >
                     <div>
-                      {new Date(file.fileDate).toLocaleDateString("it-IT")}
+                      {new Date(file.fileDate).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
                     </div>
                   </div>
                 </div>
@@ -223,7 +230,7 @@ const ModOverview = ({
                   path.join(
                     instancesPath,
                     instanceName,
-                    "mods",
+                    'mods',
                     installedData.fileName
                   )
                 );
@@ -241,7 +248,7 @@ const ModOverview = ({
               setLoading(false);
             }}
           >
-            {installedData.fileID ? "Switch Version" : "Download"}
+            {installedData.fileID ? 'Switch Version' : 'Download'}
           </Button>
         </Footer>
       </>

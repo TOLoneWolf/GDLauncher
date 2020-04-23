@@ -6,8 +6,9 @@ import {
   MC_MANIFEST_URL,
   FABRIC_APIS,
   JAVA_MANIFEST_URL,
-  CLIENT_ID,
-  FORGESVC_CATEGORIES
+  IMGUR_CLIENT_ID,
+  FORGESVC_CATEGORIES,
+  JAVA_MANIFEST_URL_MIRROR
 } from './utils/constants';
 import { sortByDate } from './utils';
 
@@ -63,7 +64,7 @@ export const imgurPost = (image, onProgress) => {
 
   return axios.post('https://api.imgur.com/3/image', bodyFormData, {
     headers: {
-      Authorization: `Client-ID ${CLIENT_ID}`
+      Authorization: `Client-ID ${IMGUR_CLIENT_ID}`
     },
     ...(onProgress && { onUploadProgress: onProgress })
   });
@@ -86,7 +87,7 @@ export const getMcManifest = () => {
 };
 
 export const getForgeManifest = () => {
-  const url = `${FORGESVC_URL}/minecraft/modloader?timestamp=${new Date().getTime()}`;
+  const url = `https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.json?timestamp=${new Date().getTime()}`;
   return axios.get(url);
 };
 
@@ -100,6 +101,11 @@ export const getJavaManifest = () => {
   return axios.get(url);
 };
 
+export const getJavaManifestFromMirror = () => {
+  const url = JAVA_MANIFEST_URL_MIRROR;
+  return axios.get(url);
+};
+
 export const getFabricJson = ([, , yarn, loader]) => {
   return axios.get(
     `https://fabricmc.net/download/technic/?yarn=${encodeURIComponent(
@@ -108,17 +114,16 @@ export const getFabricJson = ([, , yarn, loader]) => {
   );
 };
 
-export const getForgeJson = ([, , forgeVersion]) => {
-  return axios.get(
-    `https://addons-ecs.forgesvc.net/api/v2/minecraft/modloader/forge-${forgeVersion}`
-  );
-};
-
 // FORGE ADDONS
 
 export const getAddon = addonID => {
   const url = `${FORGESVC_URL}/addon/${addonID}`;
   return axios.get(url);
+};
+
+export const getMultipleAddons = async addons => {
+  const url = `${FORGESVC_URL}/addon`;
+  return axios.post(url, addons);
 };
 
 export const getAddonFiles = addonID => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import CloseButton from './CloseButton';
@@ -59,6 +59,7 @@ const Modal = ({
           height: ${header === undefined || header === true
             ? 'calc(100% - 40px)'
             : '100%'};
+          width: 100%;
           padding: ${props =>
             (props.header === undefined || props.header === true) &&
             !props.removePadding
@@ -78,4 +79,4 @@ const Modal = ({
   );
 };
 
-export default Modal;
+export default memo(Modal);
