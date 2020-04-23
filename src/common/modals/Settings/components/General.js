@@ -11,9 +11,11 @@ import {
   faTrash,
   faPlay,
   faToilet,
-  faNewspaper
+  faNewspaper,
+  faFolder,
+  faLevelDownAlt
 } from '@fortawesome/free-solid-svg-icons';
-import { Select, Tooltip, Button, Switch } from 'antd';
+import { Select, Tooltip, Button, Switch, Input } from 'antd';
 import { faDiscord } from '@fortawesome/free-brands-svg-icons';
 import {
   _getCurrentAccount,
@@ -26,7 +28,8 @@ import {
   updateDiscordRPC,
   updateHideWindowOnGameLaunch,
   updatePotatoPcMode,
-  updateShowNews
+  updateShowNews,
+  updateCustomInstancesPath
 } from '../../../reducers/settings/actions';
 import HorizontalLogo from '../../../../ui/HorizontalLogo';
 import { updateConcurrentDownloads } from '../../../reducers/actions';
@@ -170,6 +173,10 @@ const LauncherVersion = styled.div`
   }
 `;
 
+const StyledButtons = styled(Button)`
+  float: right;
+`;
+
 function copy(setCopied, copyText) {
   setCopied(true);
   clipboard.writeText(copyText);
@@ -211,6 +218,9 @@ const General = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [deletingInstances, setDeletingInstances] = useState(false);
   const showNews = useSelector(state => state.settings.showNews);
+  const customInstancesPath = useSelector(
+    state => state.settings.customInstancesPath
+  );
 
   const dispatch = useDispatch();
 
@@ -451,6 +461,81 @@ const General = () => {
           checked={potatoPcMode}
         />
       </DiscordRpc>
+      <div>
+        <Title
+          css={`
+            width: 500px;
+            text-align: left;
+          `}
+        >
+          Custom Instance Path&nbsp; <FontAwesomeIcon icon={faFolder} />
+        </Title>
+        <DiscordRpc>
+          <p
+            css={`
+              text-align: left;
+            `}
+          >
+            Enable to change instances storage path. You will need to restart
+            GDLauncher after changing the path for the GUI to update with the
+            new path and instances.
+          </p>
+          <Switch
+            color="primary"
+            onChange={c => {
+              if (c) {
+                dispatch(updateCustomInstancesPath(instancesPath));
+              } else {
+                dispatch(updateCustomInstancesPath(null));
+              }
+            }}
+            checked={customInstancesPath}
+          />
+        </DiscordRpc>
+        <div
+          css={`
+            height: 40px;
+          `}
+        >
+          <div
+            css={`
+              width: 100%;
+              margin: 20px 0;
+            `}
+          >
+            <FontAwesomeIcon
+              icon={faLevelDownAlt}
+              flip="horizontal"
+              transform={{ rotate: 90 }}
+            />
+            <Input
+              css={`
+                width: 75%;
+                margin: 0 10px;
+              `}
+              onChange={e =>
+                dispatch(updateCustomInstancesPath(e.target.value))
+              }
+              disabled={!customInstancesPath}
+              value={customInstancesPath || instancesPath}
+            />
+            <StyledButtons
+              color="primary"
+              disabled={!customInstancesPath}
+              onClick={async () => {
+                const { filePaths, canceled } = await ipcRenderer.invoke(
+                  'openFolderDialog',
+                  customInstancesPath
+                );
+                if (!filePaths[0] || canceled) return;
+                dispatch(updateCustomInstancesPath(filePaths[0]));
+              }}
+            >
+              <FontAwesomeIcon icon={faFolder} />
+            </StyledButtons>
+          </div>
+        </div>
+      </div>
       <Hr />
       <Title
         css={`

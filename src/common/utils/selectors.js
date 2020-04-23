@@ -11,6 +11,7 @@ const _currentDownload = state => state.currentDownload;
 const _downloadQueue = state => state.downloadQueue;
 const _javaManifest = state => state.app.javaManifest;
 const _userData = state => state.userData;
+const _customInstancesPath = state => state.settings.customInstancesPath;
 
 export const _getInstances = createSelector(_instances, instances =>
   Object.values(instances.list)
@@ -61,8 +62,13 @@ export const _getJavaPath = createSelector(
   }
 );
 
-export const _getInstancesPath = createSelector(_userData, userData =>
-  path.join(userData, 'instances')
+export const _getInstancesPath = createSelector(
+  _userData,
+  _customInstancesPath,
+  (userData, customPath) => {
+    if (customPath) return path.normalize(customPath);
+    return path.join(userData, 'instances');
+  }
 );
 
 export const _getTempPath = createSelector(_userData, userData =>

@@ -90,6 +90,15 @@ function java(
   }
 }
 
+function customInstancesPath(state = null, action) {
+  switch (action.type) {
+    case ActionTypes.UPDATE_CUSTOM_INSTANCES_PATH:
+      return action.value;
+    default:
+      return state;
+  }
+}
+
 export default combineReducers({
   sounds,
   releaseChannel,
@@ -98,5 +107,6 @@ export default combineReducers({
   hideWindowOnGameLaunch,
   potatoPcMode,
   showNews,
-  java
+  java,
+  customInstancesPath
 });

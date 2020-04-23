@@ -89,3 +89,12 @@ export function updateDiscordRPC(val) {
     });
   };
 }
+
+export function updateCustomInstancesPath(value) {
+  return dispatch => {
+    dispatch({
+      type: ActionTypes.UPDATE_CUSTOM_INSTANCES_PATH,
+      value
+    });
+  };
+}
