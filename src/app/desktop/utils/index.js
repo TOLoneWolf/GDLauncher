@@ -303,17 +303,17 @@ export const copyAssetsToLegacy = async assets => {
 };
 
 const hiddenToken = '__HIDDEN_TOKEN__';
-export const isOptifine = async (instancesPath, instanceName) => {
-  const configPath = path.join(
-    path.join(instancesPath, instanceName, "config.json")
-  );
+// export const isOptifine = async (instancesPath, instanceName) => {
+//   const configPath = path.join(
+//     path.join(instancesPath, instanceName, "config.json")
+//   );
 
-  const config = await fse.readJSON(configPath);
+//   const config = await fse.readJSON(configPath);
 
-  if (config.modloader[0] === "vanilla" && config.optifine) {
-    return " --tweakClass optifine.OptiFineTweaker";
-  } else return "";
-};
+//   if (config.modloader[0] === "vanilla" && config.optifine) {
+//     return " --tweakClass optifine.OptiFineTweaker";
+//   } else return "";
+// };
 
 export const getJVMArguments112 = (
   libraries,
@@ -351,6 +351,7 @@ export const getJVMArguments112 = (
 
   if (optifineVersion && modloader[0] === "vanilla") {
     args.push(" net.minecraft.launchwrapper.Launch ");
+    args.push("--tweakClass optifine.OptiFineTweaker");
   } else args.push(mcJson.mainClass);
 
   const mcArgs = mcJson.minecraftArguments.split(' ');
@@ -444,6 +445,7 @@ export const getJVMArguments113 = (
   if (optifineVersion && modloader[0] === "vanilla") {
     console.log("boiade");
     args.push(" net.minecraft.launchwrapper.Launch ");
+    args.push("--tweakClass optifine.OptiFineTweaker");
   } else args.push(mcJson.mainClass);
 
   args.push(...mcJson.arguments.game.filter(v => !skipLibrary(v)));
@@ -529,6 +531,53 @@ export const getJVMArguments113 = (
 
   return args;
 };
+
+export const patchOptifine = async (
+  javaPath,
+  optifineInstallerJar,
+  minecraftJar,
+  outputOptifineLibJar
+) => {
+  console.log(`Patching Optfine Library: "${javaPath}"`,
+  [
+    '-cp',
+    `"${optifineInstallerJar}"`,
+    'optifine.Patcher',
+    `"${minecraftJar}"`,
+    `"${optifineInstallerJar}"`,
+    `"${outputOptifineLibJar}"`
+  ]);
+  await new Promise(resolve => {
+    const ps = spawn(
+      `"${javaPath}"`,
+      [
+        '-cp',
+        `"${optifineInstallerJar}"`,
+        'optifine.Patcher',
+        `"${minecraftJar}"`,
+        `"${optifineInstallerJar}"`,
+        `"${outputOptifineLibJar}"`
+      ],
+      { shell: true }
+    );
+
+    ps.stdout.on('data', data => {
+      console.log(data.toString());
+    });
+
+    ps.stderr.on('data', data => {
+      console.error(`ps stderr: ${data}`);
+    });
+
+    ps.on('close', code => {
+      if (code !== 0) {
+        console.log(`process exited with code ${code}`);
+        resolve();
+      }
+      resolve();
+    });
+  });
+}
 
 export const patchForge113 = async (
   installProfileJson,

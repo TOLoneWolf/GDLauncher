@@ -78,7 +78,8 @@ import {
   // isOptifine,
   reflect,
   isMod,
-  isInstanceFolderPath
+  isInstanceFolderPath,
+  patchOptifine
 } from '../../app/desktop/utils';
 import {
   downloadFile,
@@ -102,7 +103,8 @@ const getOptifine = instanceName => {
     if (optifineVersionName) {
       const optifineHomePage = await getOptifineHomePage();
       const optifineManifest = parseOptifineVersions(optifineHomePage);
-      const optifineVersionsPath = _getOptifineVersionsPath(state);
+      // const optifineVersionsPath = _getOptifineVersionsPath(state);
+      const librariesPath = _getLibrariesPath(state);
       const url = optifineManifest[optifineVersionName.split(' ')[1]].filter(
         x => x.name === optifineVersionName
       )[0].download;
@@ -113,12 +115,22 @@ const getOptifine = instanceName => {
         url,
         html,
         ret,
-        path.join(optifineVersionsPath, `${optifineVersionName}.jar`)
+        path.join(
+          librariesPath,
+          'optifine',
+          'Optifine',
+          `${optifineVersionName}.jar`
+        )
       );
       if (ret && ret[1]) {
         return {
           url: `https://optifine.net/downloadx?${ret[1]}`,
-          path: path.join(optifineVersionsPath, `${optifineVersionName}.jar`)
+          path: path.join(
+            librariesPath,
+            'optifine',
+            'Optifine',
+            `${optifineVersionName}.jar`
+          )
         };
       }
     }
@@ -1193,6 +1205,96 @@ export function downloadInstance(instanceName) {
       updatePercentage,
       state.settings.concurrentDownloads
     );
+    // TODO - Patch Optifine here.
+    // const { modloader } = _getCurrentDownloadItem(state);
+    // const mcVersion = modloader[1];
+
+    dispatch(updateDownloadStatus(instanceName, 'Extracting Optifine Jar...'));
+    const librariesPath = _getLibrariesPath(state);
+    const sevenZipPath = await get7zPath();
+
+    await fse.ensureDir(
+      path.join(librariesPath, 'net', 'optifine', 'launchwrapper-of')
+    );
+    console.log('extractLaunchWrapperJar');
+    const extractLaunchWrapperJar = extractFull(
+      path.join(
+        librariesPath,
+        'optifine',
+        'Optifine',
+        `${optifineVersionName}.jar`
+      ),
+      path.join(librariesPath, 'net', 'optifine', 'launchwrapper-of'),
+      {
+        $bin: sevenZipPath,
+        yes: true,
+        $cherryPick: '*.jar'
+      }
+    );
+    await new Promise((resolve, reject) => {
+      extractLaunchWrapperJar.on('end', () => {
+        resolve();
+      });
+      extractLaunchWrapperJar.on('error', err => {
+        reject(err.stderr);
+      });
+    });
+
+    // const updatePercentage = downloaded => {
+    //   dispatch(updateDownloadProgress((downloaded * 100) / libraries.length));
+    // };
+    console.log('extractLaunchWrapperTxt');
+    await fse.ensureDir(path.join(librariesPath, 'optifine', 'Optifine'));
+    const extractLaunchWrapperTxt = extractFull(
+      path.join(
+        librariesPath,
+        'optifine',
+        'Optifine',
+        `${optifineVersionName}.jar`
+      ),
+      path.join(librariesPath, 'optifine', 'Optifine'),
+      {
+        $bin: sevenZipPath,
+        $cherryPick: 'launchwrapper-of.txt'
+      }
+    );
+    await new Promise((resolve, reject) => {
+      extractLaunchWrapperTxt.on('end', () => {
+        resolve();
+      });
+      extractLaunchWrapperTxt.on('error', err => {
+        reject(err.stderr);
+      });
+    });
+
+    console.log('move');
+    await fse.move(
+      path.join(librariesPath, 'optifine', 'Optifine', `launchwrapper-of.txt`),
+      path.join(
+        librariesPath,
+        'net',
+        'optifine',
+        `${optifineVersionName}-wrapper.txt`
+      ),
+      { overwrite: true }
+    );
+
+    // Wait 400ms to avoid "The process cannot access the file because it is being used by another process."
+    await new Promise(resolve => setTimeout(() => resolve(), 400));
+
+    console.log('patchOptifine');
+    dispatch(updateDownloadStatus(instanceName, 'Patching Optifine Jar...'));
+    await patchOptifine(
+      _getJavaPath(state),
+      path.join(
+        librariesPath,
+        'optifine',
+        'Optifine',
+        `${optifineVersionName}.jar`
+      ),
+      path.join(librariesPath, 'net', 'minecraft', `${mcVersion}.jar`),
+      path.join(librariesPath, 'net', 'optifine', `${optifineVersionName}.jar`)
+    );
 
     // Wait 400ms to avoid "The process cannot access the file because it is being used by another process."
     await new Promise(resolve => setTimeout(() => resolve(), 400));
@@ -1669,20 +1771,9 @@ export function launchInstance(instanceName) {
     };
 
     if (modloader && modloader[0] === 'vanilla') {
-      // const tempFolder = _getTempPath(state);
-      const sevenZipPath = await get7zPath();
-
-      // const launchwrapperTxtExtraction = extractFull(
-      //   path.join(optifineVersionsPath, `${config.optifine}.jar`),
-      //   tempFolder,
-      //   {
-      //     $bin: sevenZipPath,
-      //     $cherryPick: "launchwrapper-of.txt"
-      //   }
-      // );
       // const launchwrapperTxtPath = path.join(
       //   tempFolder,
-      //   "launchwrapper-of.txt"
+      //   'launchwrapper-of.txt'
       // );
 
       // const version = await fse.readJSON(launchwrapperTxtPath);
@@ -1694,28 +1785,18 @@ export function launchInstance(instanceName) {
       //   path.join(optifineVersionsPath, `${config.optifine}.jar`)
       // );
 
-      if (instanceConfig.optifine) {
-        await makeDir(path.join(libraryPath, 'optifine'));
-
-        extractFull(
-          path.join(optifineVersionsPath, `${instanceConfig.optifine}.jar`),
-          path.join(libraryPath, 'optifine', 'launchwrapper-of'),
-          {
-            $bin: sevenZipPath,
-            $cherryPick: '*.jar'
-          }
-        );
-
-        await fse.copy(
-          path.join(optifineVersionsPath, `${instanceConfig.optifine}.jar`),
-          path.join(
-            libraryPath,
-            'optifine',
-            'Optifine',
-            `${instanceConfig.optifine}.jar`
-          )
-        );
-      }
+      // if (instanceConfig.optifine) {
+      //   // await makeDir(path.join(libraryPath, 'optifine'));
+      //   // await fse.copy(
+      //   //   path.join(optifineVersionsPath, `${instanceConfig.optifine}.jar`),
+      //   //   path.join(
+      //   //     libraryPath,
+      //   //     'optifine',
+      //   //     'Optifine',
+      //   //     `${instanceConfig.optifine}.jar`
+      //   //   )
+      //   // );
+      // }
     } else if (modloader && modloader[0] === 'fabric') {
       const fabricJsonPath = path.join(
         _getLibrariesPath(state),
@@ -1751,15 +1832,15 @@ export function launchInstance(instanceName) {
         )
       );
 
-      await fse.copy(
-        path.join(optifineVersionsPath, `${instanceConfig.optifine}.jar`),
-        path.join(
-          _getInstancesPath(state),
-          instanceName,
-          'mods',
-          `${instanceConfig.optifine}.jar`
-        )
-      );
+      // await fse.copy(
+      //   path.join(optifineVersionsPath, `${instanceConfig.optifine}.jar`),
+      //   path.join(
+      //     _getInstancesPath(state),
+      //     instanceName,
+      //     'mods',
+      //     `${instanceConfig.optifine}.jar`
+      //   )
+      // );
 
       if (
         lt(coerce(modloader[2]), coerce('10.13.1')) &&
@@ -1810,13 +1891,16 @@ export function launchInstance(instanceName) {
       'url'
     );
 
-    const tempFolder = _getTempPath(state);
-    const launchwrapperTxtPath = path.join(tempFolder, 'launchwrapper-of.txt');
-    const version = await fse.readJSON(launchwrapperTxtPath);
+    // const tempFolder = _getTempPath(state);
+    // const launchwrapperTxtPath = path.join(tempFolder, 'launchwrapper-of.txt');
+    const version = await fse.readJSON(
+      path.join(optifineVersionsPath, `${instanceConfig.optifine}-wrapper.txt`)
+    );
 
     const existLauncherWrapper = await fs.lstat(
       path.join(
         libraryPath,
+        'net',
         'optifine',
         'launchwrapper-of',
         `launchwrapper-of-${version}.jar`
@@ -1833,6 +1917,7 @@ export function launchInstance(instanceName) {
           {
             path: path.join(
               libraryPath,
+              'net',
               'optifine',
               'launchwrapper-of',
               `launchwrapper-of-${version}.jar`
