@@ -1268,16 +1268,27 @@ export function downloadInstance(instanceName) {
     });
 
     console.log('move');
-    await fse.move(
-      path.join(librariesPath, 'optifine', 'Optifine', `launchwrapper-of.txt`),
-      path.join(
-        librariesPath,
-        'net',
-        'optifine',
-        `${optifineVersionName}-wrapper.txt`
-      ),
-      { overwrite: true }
+    const wrapperExists = await fse.exists(
+      path.join(librariesPath, 'optifine', 'Optifine', `launchwrapper-of.txt`)
     );
+    console.log(`exists: ${wrapperExists}`);
+    if (wrapperExists) {
+      await fse.move(
+        path.join(
+          librariesPath,
+          'optifine',
+          'Optifine',
+          `launchwrapper-of.txt`
+        ),
+        path.join(
+          librariesPath,
+          'net',
+          'optifine',
+          `${optifineVersionName}-wrapper.txt`
+        ),
+        { overwrite: true }
+      );
+    }
 
     // Wait 400ms to avoid "The process cannot access the file because it is being used by another process."
     await new Promise(resolve => setTimeout(() => resolve(), 400));
@@ -1893,11 +1904,19 @@ export function launchInstance(instanceName) {
 
     // const tempFolder = _getTempPath(state);
     // const launchwrapperTxtPath = path.join(tempFolder, 'launchwrapper-of.txt');
-    const version = await fse.readJSON(
+    const wrapperExists = await fse.exists(
       path.join(optifineVersionsPath, `${instanceConfig.optifine}-wrapper.txt`)
     );
+    const version = wrapperExists
+      ? await fse.readJSON(
+          path.join(
+            optifineVersionsPath,
+            `${instanceConfig.optifine}-wrapper.txt`
+          )
+        )
+      : false;
 
-    const existLauncherWrapper = await fs.lstat(
+    const existLauncherWrapper = await fse.exists(
       path.join(
         libraryPath,
         'net',
@@ -1908,7 +1927,7 @@ export function launchInstance(instanceName) {
     );
 
     if (instanceConfig.optifine) {
-      const existOptifine = await fs.lstat(
+      const existOptifine = await fse.exists(
         path.join(optifineVersionsPath, `${instanceConfig.optifine}.jar`)
       );
 

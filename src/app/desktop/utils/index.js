@@ -9,6 +9,7 @@ import { ipcRenderer } from 'electron';
 import path from 'path';
 import { exec, spawn } from 'child_process';
 import cheerio from 'cheerio';
+import semVer from 'semver';
 import { MC_LIBRARIES_URL } from '../../../common/utils/constants';
 import { removeDuplicates } from '../../../common/utils';
 import { getAddonFile, mcGetPlayerSkin } from '../../../common/api';
@@ -350,7 +351,11 @@ export const getJVMArguments112 = (
   args.push(`-Djava.library.path="${path.join(instancePath, 'natives')}"`);
 
   if (optifineVersion && modloader[0] === "vanilla") {
-    args.push(" net.minecraft.launchwrapper.Launch ");
+    if (semVer.lt(modloader[1], '1.8.9')) {
+      args.push(mcJson.mainClass);
+    } else {
+      args.push(" net.minecraft.launchwrapper.Launch ");
+    }
     args.push("--tweakClass optifine.OptiFineTweaker");
   } else args.push(mcJson.mainClass);
 
