@@ -39,7 +39,9 @@ const SettingsColumn = styled.div`
   overflow-x: hidden;
 `;
 
-const SettingsButton = styled(Button)`
+// Fixes warnings about recievied active=`true` fro non-boolean attribute.
+// eslint-disable-next-line react/jsx-props-no-spreading
+const SettingsButton = styled(({ active, ...props }) => <Button {...props} />)`
   align-items: left;
   justify-content: left;
   text-align: left;

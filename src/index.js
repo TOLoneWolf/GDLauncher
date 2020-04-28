@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { ThemeProvider as StyledThemeProvider } from 'styled-components';
 import { PersistGate } from 'redux-persist/integration/react';
 import { ConnectedRouter } from 'connected-react-router';
 import { configureStore, history } from './common/store/configureStore';
-import theme from './ui/theme';
+// import theme from './ui/theme';
 import RootDev from './Root-Dev';
 import RootWeb from './Root-Web';
 import RootElectron from './Root-Electron';
@@ -22,8 +22,14 @@ const Root =
     ? RootWeb
     : RootElectron;
 
-const ThemeProvider = ({ theme: themeUI, children }) => {
-  return <StyledThemeProvider theme={themeUI}>{children}</StyledThemeProvider>;
+const ThemeProvider = ({ children }) => {
+  const themeState = useSelector(state => state.settings.theme);
+  const activeTheme = themeState.active;
+  const currentTheme = themeState.themes[activeTheme];
+  // console.log(themeState);
+  return (
+    <StyledThemeProvider theme={currentTheme}>{children}</StyledThemeProvider>
+  );
 };
 
 const { store, persistor } = configureStore();
@@ -33,7 +39,7 @@ window.__store = store;
 ReactDOM.render(
   <Provider store={store}>
     <PersistGate loading={null} persistor={persistor}>
-      <ThemeProvider theme={theme}>
+      <ThemeProvider>
         <ConnectedRouter history={history}>
           <ErrorBoundary>
             <ModalsManager />

@@ -1,3 +1,4 @@
+// TODO - Break themes into better chunks.
 module.exports = {
   palette: {
     common: {

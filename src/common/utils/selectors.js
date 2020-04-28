@@ -11,6 +11,16 @@ const _currentDownload = state => state.currentDownload;
 const _downloadQueue = state => state.downloadQueue;
 const _javaManifest = state => state.app.javaManifest;
 const _userData = state => state.userData;
+const _getActiveTheme = state => state.settings.theme.active;
+const _getThemes = state => state.settings.theme.themes;
+
+export const _getCurrentTheme = createSelector(
+  _getActiveTheme,
+  _getThemes,
+  (active, themes) => {
+    return themes[active];
+  }
+);
 
 export const _getInstances = createSelector(_instances, instances =>
   Object.values(instances.list)

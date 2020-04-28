@@ -4,6 +4,7 @@ import {
   DEFAULT_JAVA_ARGS,
   DEFAULT_MEMORY
 } from '../../../app/desktop/utils/constants';
+import defaultTheme from '../../../ui/theme';
 
 function sounds(state = true, action) {
   switch (action.type) {
@@ -90,6 +91,37 @@ function java(
   }
 }
 
+function theme(
+  state = {
+    active: 'Default',
+    themes: { Default: defaultTheme }
+  },
+  action
+) {
+  switch (action.type) {
+    case ActionTypes.UPDATE_SELECTED_THEME:
+      return {
+        ...state,
+        active: action.payload
+      };
+    case ActionTypes.RESET_THEME:
+      return {
+        ...state,
+        active: 'Default',
+        themes: {
+          Default: defaultTheme
+        }
+      };
+    case ActionTypes.TEST:
+      return {
+        ...state,
+        themes: { ...state.themes, [action.payload.name]: action.payload.data }
+      };
+    default:
+      return state;
+  }
+}
+
 export default combineReducers({
   sounds,
   releaseChannel,
@@ -98,5 +130,6 @@ export default combineReducers({
   hideWindowOnGameLaunch,
   potatoPcMode,
   showNews,
-  java
+  java,
+  theme
 });

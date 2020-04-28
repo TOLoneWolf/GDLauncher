@@ -32,7 +32,8 @@ const SideMenuContainer = styled.div`
   background: ${props => props.theme.palette.secondary.main};
 `;
 
-const SettingsButton = styled(Button)`
+// Fixes warnings about recievied active=`true` fro non-boolean attribute.
+const SettingsButton = styled(({ active, ...props }) => <Button { ...props } />)`
   align-items: left;
   justify-content: left;
   text-align: left;

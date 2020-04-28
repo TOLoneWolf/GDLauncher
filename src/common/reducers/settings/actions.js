@@ -89,3 +89,30 @@ export function updateDiscordRPC(val) {
     });
   };
 }
+
+export function updateSelectedTheme(val) {
+  return dispatch => {
+    dispatch({
+      type: ActionTypes.UPDATE_SELECTED_THEME,
+      payload: val
+    });
+  };
+}
+
+export function resetTheme() {
+  return dispatch => {
+    dispatch({
+      type: ActionTypes.RESET_THEME
+    });
+  };
+}
+
+/** Pass { name: ThemeName, data: { param1: 'param', param2: 'param' } } */
+export function updateTest({ name, data }) {
+  return dispatch => {
+    dispatch({
+      type: ActionTypes.TEST,
+      payload: { name, data }
+    });
+  };
+}

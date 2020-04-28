@@ -474,8 +474,9 @@ const StyledContexMenu = styled(ContextMenu)`
     margin: 0 7px 0 0;
   }
 `;
+// const DeleteButton = styled(({ selectedItems, ...props}) => <FontAwesomeIcon {...props} />)
 
-const DeleteButton = styled(FontAwesomeIcon)`
+const DeleteButton = styled(({ selectedItems, ...props}) => <FontAwesomeIcon {...props} />)`
   margin-left: 20px;
   transition: color 0.3s ease-in-out;
   &:hover {
@@ -515,7 +516,14 @@ const TitleDataSection = styled.h2`
   left: 20px;
 `;
 
-const LoadingSlider = styled.div`
+// const LoadingSlider = styled(({ selectedItems, ...props}) => <div {...props} />)
+
+// const StyledDiv = styled.div(({width, height, ...props }) => ({
+//   css: ``, width, ...props
+// }))
+
+const LoadingSlider = styled.div(({selectedItems, ...props }) => ({
+  css: `
   position: absolute;
   bottom: 4px;
   z-index: -1;
@@ -527,7 +535,22 @@ const LoadingSlider = styled.div`
       : 'translate(-100%)'};
   transition: transform 0.1s ease-in-out;
   background: ${props => props.theme.palette.primary.main};
-`;
+`, ...props
+}))
+
+// const LoadingSlider = styled.div`
+//   position: absolute;
+//   bottom: 4px;
+//   z-index: -1;
+//   width: 100%;
+//   height: 100%;
+//   transform: ${props =>
+//     props.uploadingFileName != null
+//       ? `translate(${props.translateAmount}%)`
+//       : 'translate(-100%)'};
+//   transition: transform 0.1s ease-in-out;
+//   background: ${props => props.theme.palette.primary.main};
+// `;
 
 const Photo = styled.img`
   height: 100px;
@@ -573,7 +596,9 @@ const MenuShareLink = styled.div`
     margin: 0 7px 0 0;
   }
 `;
-const PhotoContainer = styled.div`
+// const PhotoContainer = styled(({ selectedItems, ...props}) => <Link {...props} />)
+
+const PhotoContainer = styled(({ selectedItems, ...props}) => <Link {...props} />)`
   position: relative;
   height: 100px;
   max-height: 100px;
