@@ -2328,6 +2328,94 @@ export function installMod(
     const { cacheMods } = state.settings;
     const manifestFile = 'manifest.json';
 
+    // Get existing instances with mods
+    const instanceList = _getInstances(state);
+    const instancesWithMods = instanceList.filter(instance => {
+      if (!(instance?.mods && instance.mods.length !== 0)) return false;
+      return instance.name !== instanceName;
+    });
+
+    // Copy from other instances if file exists.
+    const firstInstanceWithModMatch = instancesWithMods.find(instance =>
+      instance.mods.some(
+        mod => mod.projectID === projectID && mod.fileID === fileID
+      )
+    );
+    const modData = firstInstanceWithModMatch?.mods.find(
+      mod => mod.projectID === projectID
+    );
+
+    if (modData) {
+      const instanceDestFile = path.join(
+        _getInstancesPath(state),
+        instanceName,
+        modData.categorySection.path,
+        modData.fileName
+      );
+      const destFileExistsInstance = await fse.pathExists(instanceDestFile);
+      if (!destFileExistsInstance) {
+        const otherInstance = path.join(
+          _getInstancesPath(state),
+          firstInstanceWithModMatch.name,
+          modData.categorySection.path,
+          modData.fileName
+        );
+
+        await fse.ensureDir(path.dirname(instanceDestFile));
+        try {
+          await fse.ensureLink(path.join(otherInstance), instanceDestFile);
+        } catch {
+          await fse.copyFile(path.join(otherInstance), instanceDestFile);
+        }
+      }
+
+      // manifest was already normalized so just append it to the array.
+      await dispatch(
+        updateInstanceConfig(instanceName, prev => {
+          needToAddMod = !prev.mods.find(
+            v => v.fileID === fileID && v.projectID === projectID
+          );
+          return {
+            ...prev,
+            mods: [...prev.mods, ...(needToAddMod ? [modData] : [])]
+          };
+        })
+      );
+      if (installDeps) {
+        await pMap(
+          modData.dependencies,
+          async dep => {
+            // type 1: embedded
+            // type 2: optional
+            // type 3: required
+            // type 4: tool
+            // type 5: incompatible
+            // type 6: include
+
+            if (dep.type === 3) {
+              const depList = await getAddonFiles(dep.addonId);
+              const depData = depList.data.find(v =>
+                v.gameVersion.includes(gameVersion)
+              );
+              await dispatch(
+                installMod(
+                  dep.addonId,
+                  depData.id,
+                  instanceName,
+                  gameVersion,
+                  installDeps,
+                  onProgress,
+                  useTempMiddleware
+                )
+              );
+            }
+          },
+          { concurrency: 2 }
+        );
+      }
+      return;
+    }
+
     // Check cache for mod first.
     const cachedModFolder = path.join(
       _getModCachePath(state),
@@ -2411,6 +2499,7 @@ export function installMod(
       return;
     }
 
+    // Fetch from curseforge
     const mainModData = await getAddonFile(projectID, fileID);
     const { data: addon } = await getAddon(projectID);
     mainModData.data.projectID = projectID;
