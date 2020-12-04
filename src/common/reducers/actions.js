@@ -2454,102 +2454,102 @@ export function installMod(
         );
         await deps(cachedManifest);
         // was not found in dedicated cache.
-      } else if (cacheModsInstances) {
-        // Check instances.
-        // Get existing instance with mods.
-        const instanceList = _getInstances(state);
-        const instancesWithMods = instanceList.filter((singleInstance) => {
-          if (!(singleInstance?.mods && singleInstance.mods.length !== 0))
-            return false;
-          return singleInstance.name !== instanceName;
-        });
+        return;
+      }
+    }
+    if (cacheModsInstances) {
+      // Check instances.
+      // Get existing instance with mods.
+      const instanceList = _getInstances(state);
+      const instancesWithMods = instanceList.filter((singleInstance) => {
+        if (!(singleInstance?.mods && singleInstance.mods.length !== 0))
+          return false;
+        return singleInstance.name !== instanceName;
+      });
 
-        // Copy from existing instance.
+      // Copy from existing instance.
 
-        // Copy from other instances if file exists.
-        const firstInstanceWithModMatch = instancesWithMods.find(
-          (singleInstance) =>
-            singleInstance.mods.some(
-              (mod) => mod.projectID === projectID && mod.fileID === fileID
-            )
+      // Copy from other instances if file exists.
+      const firstInstanceWithModMatch = instancesWithMods.find(
+        (singleInstance) =>
+          singleInstance.mods.some(
+            (mod) => mod.projectID === projectID && mod.fileID === fileID
+          )
+      );
+
+      if (firstInstanceWithModMatch) {
+        const modData = firstInstanceWithModMatch?.mods.find(
+          (mod) => mod.projectID === projectID
         );
 
-        if (firstInstanceWithModMatch) {
-          const modData = firstInstanceWithModMatch?.mods.find(
-            (mod) => mod.projectID === projectID
+        if (modData) {
+          const instanceDestFile = path.join(
+            _getInstancesPath(state),
+            instanceName,
+            modData?.categorySection?.path || "mods",
+            modData.fileName
           );
-
-          if (modData) {
-            const instanceDestFile = path.join(
+          const destFileExistsInstance = await fse.pathExists(instanceDestFile);
+          if (!destFileExistsInstance) {
+            const otherInstance = path.join(
               _getInstancesPath(state),
-              instanceName,
+              firstInstanceWithModMatch.name,
               modData?.categorySection?.path || "mods",
               modData.fileName
             );
-            const destFileExistsInstance = await fse.pathExists(
-              instanceDestFile
+
+            console.log(
+              `[Mod Cache] Retrieved from instance: ${modData.fileName}`
             );
-            if (!destFileExistsInstance) {
-              const otherInstance = path.join(
-                _getInstancesPath(state),
-                firstInstanceWithModMatch.name,
-                modData?.categorySection?.path || "mods",
-                modData.fileName
-              );
-
-              console.log(
-                `[Mod Cache] Retrieved from instance: ${modData.fileName}`
-              );
-              await fse.ensureDir(path.dirname(instanceDestFile));
-              try {
-                await fse.ensureLink(otherInstance, instanceDestFile);
-              } catch {
-                await fse.copyFile(otherInstance, instanceDestFile);
-              }
-
-              if (cacheMods) {
-                console.log(
-                  `[Mod Cache] Adding to cache from instance: ${modData.fileName}`
-                );
-                await fse.ensureDir(cachedModFolder);
-                try {
-                  await fse.ensureLink(
-                    otherInstance,
-                    path.join(cachedModFolder, modData.fileName)
-                  );
-                } catch {
-                  await fse.copyFile(
-                    otherInstance,
-                    path.join(cachedModFolder, modData.fileName)
-                  );
-                }
-                await fse.outputJson(
-                  path.join(cachedModFolder, manifestFile),
-                  modData
-                );
-              }
+            await fse.ensureDir(path.dirname(instanceDestFile));
+            try {
+              await fse.ensureLink(otherInstance, instanceDestFile);
+            } catch {
+              await fse.copyFile(otherInstance, instanceDestFile);
             }
 
-            await dispatch(
-              updateInstanceConfig(instanceName, (prev) => {
-                needToAddMod = !prev.mods.find(
-                  (v) => v.fileID === fileID && v.projectID === projectID
+            if (cacheMods) {
+              console.log(
+                `[Mod Cache] Adding to cache from instance: ${modData.fileName}`
+              );
+              await fse.ensureDir(cachedModFolder);
+              try {
+                await fse.ensureLink(
+                  otherInstance,
+                  path.join(cachedModFolder, modData.fileName)
                 );
-                return {
-                  ...prev,
-                  mods: [...prev.mods, ...(needToAddMod ? [modData] : [])],
-                };
-              })
-            );
-            await deps(modData);
+              } catch {
+                await fse.copyFile(
+                  otherInstance,
+                  path.join(cachedModFolder, modData.fileName)
+                );
+              }
+              await fse.outputJson(
+                path.join(cachedModFolder, manifestFile),
+                modData
+              );
+            }
           }
+
+          await dispatch(
+            updateInstanceConfig(instanceName, (prev) => {
+              needToAddMod = !prev.mods.find(
+                (v) => v.fileID === fileID && v.projectID === projectID
+              );
+              return {
+                ...prev,
+                mods: [...prev.mods, ...(needToAddMod ? [modData] : [])],
+              };
+            })
+          );
+          await deps(modData);
+          // eslint-disable-next-line no-useless-return
+          return;
         }
-        // Not found in instances.
-      } else {
-        // Download from Curseforge.
-        await downloadFromCurseforge();
       }
+      // Not found in instances.
     }
+    await downloadFromCurseforge();
 
     async function downloadFromCurseforge() {
       const mainModData = await getAddonFile(projectID, fileID);
