@@ -2549,98 +2549,86 @@ export function installMod(
       }
       // Not found in instances.
     }
-    await downloadFromCurseforge();
+    // If we make it this far then download from curseforge.
+    const mainModData = await getAddonFile(projectID, fileID);
+    const { data: addon } = await getAddon(projectID);
+    mainModData.data.projectID = projectID;
+    const destFile = path.join(
+      instancePath,
+      addon.categorySection.path,
+      mainModData.data.fileName
+    );
+    const tempFile = path.join(_getTempPath(state), mainModData.data.fileName);
 
-    async function downloadFromCurseforge() {
-      const mainModData = await getAddonFile(projectID, fileID);
-      const { data: addon } = await getAddon(projectID);
-      mainModData.data.projectID = projectID;
-      const destFile = path.join(
-        instancePath,
-        addon.categorySection.path,
-        mainModData.data.fileName
-      );
-      const tempFile = path.join(
-        _getTempPath(state),
-        mainModData.data.fileName
-      );
+    const newModManifest = normalizeModData(
+      mainModData.data,
+      projectID,
+      addon.name,
+      addon.categorySection
+    );
 
-      const newModManifest = normalizeModData(
-        mainModData.data,
-        projectID,
-        addon.name,
-        addon.categorySection
-      );
+    if (useTempMiddleware) {
+      await downloadFile(tempFile, mainModData.data.downloadUrl, onProgress);
+    }
 
+    await dispatch(
+      updateInstanceConfig(instanceName, (prev) => {
+        needToAddMod = !prev.mods.find(
+          (v) => v.fileID === fileID && v.projectID === projectID
+        );
+        return {
+          ...prev,
+          mods: [...prev.mods, ...(needToAddMod ? [newModManifest] : [])],
+        };
+      })
+    );
+
+    if (!needToAddMod) {
       if (useTempMiddleware) {
-        await downloadFile(tempFile, mainModData.data.downloadUrl, onProgress);
+        await fse.remove(tempFile);
       }
+      return;
+    }
 
-      await dispatch(
-        updateInstanceConfig(instanceName, (prev) => {
-          needToAddMod = !prev.mods.find(
-            (v) => v.fileID === fileID && v.projectID === projectID
-          );
-          return {
-            ...prev,
-            mods: [...prev.mods, ...(needToAddMod ? [newModManifest] : [])],
-          };
-        })
-      );
-
-      if (!needToAddMod) {
-        if (useTempMiddleware) {
-          await fse.remove(tempFile);
-        }
-        return;
-      }
-
-      if (!useTempMiddleware) {
-        try {
-          await fse.access(destFile);
-          const murmur2 = await getFileMurmurHash2(destFile);
-          if (murmur2 !== mainModData.data.packageFingerprint) {
-            await downloadFile(
-              destFile,
-              mainModData.data.downloadUrl,
-              onProgress
-            );
-          }
-        } catch {
+    if (!useTempMiddleware) {
+      try {
+        await fse.access(destFile);
+        const murmur2 = await getFileMurmurHash2(destFile);
+        if (murmur2 !== mainModData.data.packageFingerprint) {
           await downloadFile(
             destFile,
             mainModData.data.downloadUrl,
             onProgress
           );
         }
-      } else {
-        await fse.move(tempFile, destFile, { overwrite: true });
+      } catch {
+        await downloadFile(destFile, mainModData.data.downloadUrl, onProgress);
       }
-
-      // Cache newly downloaded mods.
-      if (cacheMods) {
-        console.log(
-          `[Mod Cache] Caching download: ${mainModData.data.fileName}`
-        );
-        await fse.ensureDir(cachedModFolder);
-        try {
-          await fse.ensureLink(
-            destFile,
-            path.join(cachedModFolder, mainModData.data.fileName)
-          );
-        } catch {
-          await fse.copyFile(
-            destFile,
-            path.join(cachedModFolder, mainModData.data.fileName)
-          );
-        }
-        await fse.outputJson(
-          path.join(cachedModFolder, manifestFile),
-          newModManifest
-        );
-      }
-      await deps(mainModData.data);
+    } else {
+      await fse.move(tempFile, destFile, { overwrite: true });
     }
+
+    // Cache newly downloaded mods.
+    if (cacheMods) {
+      console.log(`[Mod Cache] Caching download: ${mainModData.data.fileName}`);
+      await fse.ensureDir(cachedModFolder);
+      try {
+        await fse.ensureLink(
+          destFile,
+          path.join(cachedModFolder, mainModData.data.fileName)
+        );
+      } catch {
+        await fse.copyFile(
+          destFile,
+          path.join(cachedModFolder, mainModData.data.fileName)
+        );
+      }
+      await fse.outputJson(
+        path.join(cachedModFolder, manifestFile),
+        newModManifest
+      );
+    }
+    await deps(mainModData.data);
 
     async function deps(mainModData) {
       if (installDeps) {
