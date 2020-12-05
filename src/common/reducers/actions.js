@@ -1522,18 +1522,8 @@ export function downloadInstance(instanceName) {
         await dispatch(processManifest(instanceName));
       }
       // Be aware that from this line the installer lock might be unlocked!
-
-
-
-
-      
       await dispatch(removeDownloadFromQueue(instanceName));
       dispatch(addNextInstanceToCurrentDownload());
-
-
-
-
-
     } else {
       // DOWNLOAD MINECRAFT JSON
       try {
