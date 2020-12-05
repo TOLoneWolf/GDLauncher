@@ -45,6 +45,12 @@ jobs:
         RELEASE_TESTING: true
       run: yarn release
 
+    # Upload Release if Needed
+    - name: Upload Release
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: yarn upload
+
     # Upload Koala Artifacts
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v2
