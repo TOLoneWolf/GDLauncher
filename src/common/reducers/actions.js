@@ -819,7 +819,7 @@ export function downloadForge(instanceName) {
     );
 
     const checkForgeSkip = await fse.pathExists(forgeJsonPath);
-    if (!checkForgeSkip && assetsCheckSkip) {
+    if (!(checkForgeSkip && assetsCheckSkip)) {
       const forgeJson = {};
 
       const sevenZipPath = await get7zPath();
@@ -1499,9 +1499,22 @@ export function downloadInstance(instanceName) {
         mcJson = (await axios.get(versionURL)).data;
         await fse.outputJson(mcJsonPath, mcJson);
       }
+      const libraries = librariesMapper(
+        mcJson.libraries,
+        _getLibrariesPath(state)
+      );
+
+      await extractNatives(
+        libraries,
+        // TODO: Central Natives Directory 1 of 2
+        // Switch to "path.join(_getNativeLibs(state), modloader[1])" to use a central copy of libs for X version.
+        path.join(_getInstancesPath(state), instanceName, "natives")
+        // pgetJVMArguments112ath.join(_getNativeLibs(state), modloader[1])
+      );
+
       if (modloader && modloader[0] === FABRIC) {
-        await dispatchEvent(downloadFabric(instanceName));
-      } else if (modloader && modloader[0] === FABRIC) {
+        await dispatch(downloadFabric(instanceName));
+      } else if (modloader && modloader[0] === FORGE) {
         await dispatch(downloadForge(instanceName));
       }
 
@@ -1510,8 +1523,17 @@ export function downloadInstance(instanceName) {
       }
       // Be aware that from this line the installer lock might be unlocked!
 
+
+
+
+      
       await dispatch(removeDownloadFromQueue(instanceName));
       dispatch(addNextInstanceToCurrentDownload());
+
+
+
+
+
     } else {
       // DOWNLOAD MINECRAFT JSON
       try {
@@ -1519,8 +1541,6 @@ export function downloadInstance(instanceName) {
       } catch (err) {
         const versionURL = mcVersions.find((v) => v.id === mcVersion).url;
         mcJson = (await axios.get(versionURL)).data;
-        // TODO: Move this lower in action to prevent false possitive downloads?
-        await fse.outputJson(mcJsonPath, mcJson);
       }
 
       // COMPUTING MC ASSETS
@@ -1605,6 +1625,9 @@ export function downloadInstance(instanceName) {
       if (mcJson.assets === "legacy") {
         await copyAssetsToLegacy(assets);
       }
+
+      // Fisnished downloading vanilla files. Can save json now to use as check.
+      await fse.outputJson(mcJsonPath, mcJson);
 
       if (modloader && modloader[0] === FABRIC) {
         await dispatch(downloadFabric(instanceName));
@@ -2630,10 +2653,10 @@ export function installMod(
     }
     await deps(mainModData.data);
 
-    async function deps(mainModData) {
+    async function deps(_mainModData) {
       if (installDeps) {
         await pMap(
-          mainModData.dependencies,
+          _mainModData.dependencies,
           async (dep) => {
             // type 1: embedded
             // type 2: optional
