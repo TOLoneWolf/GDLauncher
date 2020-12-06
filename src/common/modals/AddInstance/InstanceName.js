@@ -35,11 +35,29 @@ const InstanceName = ({
   importZipPath,
   step
 }) => {
-  const mcName = (
-    modpack?.name.replace(/\W/g, ' ') ||
-    (version && `Minecraft ${version[0]}`) ||
-    ''
-  ).trim();
+  
+  const mcName = () => {
+    // Version array output will be =>
+    // ["vanilla", "release", "1.16.4"] or
+    // ["forge", "1.16.4", "1.16.4-35.1.10"] or
+    // ["fabric", "release", "1.16.4", "0.10.8"]
+    if (modpack) {
+      return (modpack?.name.replace(/\W/g, ' ')).trim();
+    }
+    if (version) {
+      if (version[0] === "vanilla") {
+        return (`${version[0]} ${version[2]}`)
+      }
+      else if (version[0] === "forge") {
+        return (`${version[0]} ${version[2]}`)
+      }
+      else if (version[0] === "fabric") {
+        return (`${version[0]} ${version[2]}-${version[3]}`)
+      }
+    }
+    return ('');
+  }
+
   const originalMcName =
     modpack?.name || (version && `Minecraft ${version[0]}`);
   const dispatch = useDispatch();
@@ -53,35 +71,37 @@ const InstanceName = ({
   const [invalidName, setInvalidName] = useState(true);
   const [clicked, setClicked] = useState(false);
 
+  useEffect(() =>{
+    setInstanceName(mcName);
+  }, [step]);
+
   useEffect(() => {
     // Checks user input for invalid input.
-    if (instanceName || mcName) {
-      const regex = /^[\sa-zA-Z0-9_.-]+$/;
-      const finalWhiteSpace = /[^\s]$/;
-      if (
-        !regex.test(instanceName || mcName) ||
-        !finalWhiteSpace.test(instanceName || mcName) ||
-        (instanceName || mcName).length >= 45
-      ) {
-        setInvalidName(true);
-      } else {
-        setInvalidName(false);
-      }
+    const regex = /^[\sa-zA-Z0-9_.-]+$/;
+    const finalWhiteSpace = /[^\s]$/;
+    if (
+      !regex.test(instanceName) ||
+      !finalWhiteSpace.test(instanceName) ||
+      (instanceName).length >= 45 ||
+      instanceName === ''
+    ) {
+      setInvalidName(true);
+      setAlreadyExists(false);
+      // Don't need to run any more checks since name is invalid.
+      return;
+    } else {
+      setInvalidName(false);
     }
-  }, [instanceName, step]);
-
-    useEffect(() => {
       // Checks for instances dir for folder name usage.
     fse
-      .pathExists(path.join(instancesPath, instanceName || mcName))
+      .pathExists(path.join(instancesPath, instanceName))
       .then(exists => {
-        const newName = instanceNameSuffix(instanceName || mcName, instances);
+        const newName = instanceNameSuffix(instanceName, instances);
         setInstanceNameSufx(newName);
 
         setAlreadyExists(exists);
-        setInvalidName(false);
       });
-  }, [step]);
+  }, [instanceName, step]);
 
   const thumbnailURL = modpack?.attachments?.find(v => v.isDefault)
     ?.thumbnailUrl;
@@ -279,7 +299,7 @@ const InstanceName = ({
                     <Input
                       state={state1}
                       size="large"
-                      value={instanceName || mcName}
+                      value={instanceName}
                       onChange={async e => {
                         setInstanceName(e.target.value);
                       }}
