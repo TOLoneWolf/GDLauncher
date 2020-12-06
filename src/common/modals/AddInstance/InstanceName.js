@@ -54,6 +54,7 @@ const InstanceName = ({
   const [clicked, setClicked] = useState(false);
 
   useEffect(() => {
+    // Checks user input for invalid input.
     if (instanceName || mcName) {
       const regex = /^[\sa-zA-Z0-9_.-]+$/;
       const finalWhiteSpace = /[^\s]$/;
@@ -63,13 +64,14 @@ const InstanceName = ({
         (instanceName || mcName).length >= 45
       ) {
         setInvalidName(true);
-        setAlreadyExists(false);
-        return;
+      } else {
+        setInvalidName(false);
       }
     }
   }, [instanceName, step]);
 
-  useEffect(() => {
+    useEffect(() => {
+      // Checks for instances dir for folder name usage.
     fse
       .pathExists(path.join(instancesPath, instanceName || mcName))
       .then(exists => {
@@ -277,13 +279,9 @@ const InstanceName = ({
                     <Input
                       state={state1}
                       size="large"
-                      placeholder={instanceNameSufx || instanceName || mcName}
+                      value={instanceName || mcName}
                       onChange={async e => {
-                        const newName = instanceNameSuffix(
-                          e.target.value,
-                          instances
-                        );
-                        setInstanceName(newName);
+                        setInstanceName(e.target.value);
                       }}
                       css={`
                         opacity: ${({ state }) =>
@@ -294,14 +292,13 @@ const InstanceName = ({
                       `}
                     />
                     <div
-                      show={!instanceNameSufx && (invalidName || alreadyExists)}
                       css={`
-                        opacity: ${props => (props.show ? 1 : 0)};
+                        visibility: ${(invalidName || alreadyExists) ? 'visible' : 'hidden'};
                         color: ${props => props.theme.palette.error.main};
                         font-weight: 700;
                         font-size: 14px;
-                        padding: 3px;
-                        height: 30px;
+                        padding: 5px;
+                        height: 50px;
                         margin-top: 10px;
                         text-align: center;
                         border-radius: ${props =>
@@ -310,11 +307,22 @@ const InstanceName = ({
                           transparentize(0.7, props.theme.palette.grey[700])};
                       `}
                     >
-                      {invalidName &&
-                        'Instance name is not valid or too long. Please try another one'}
-                      {alreadyExists &&
-                        !instanceNameSufx &&
-                        'An instance with this name already exists!'}
+                      {invalidName && (
+                        <div>
+                          Instance name is not valid or too long. Please try another one
+                        </div>)
+                      }
+
+                      {alreadyExists && (
+                        <div>
+                          <div>
+                            Name already in use. Will use the this instead:
+                          </div>
+                          <div>
+                            {instanceNameSufx && `${instanceNameSufx}`}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
