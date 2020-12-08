@@ -132,7 +132,15 @@ export default function ThirdStep({
             const match = selectedFiles.find(
               (file) => mod.fileName === path.basename(file)
             );
-            if (match && mod.projectID) return true;
+            if (
+              match &&
+              mod.projectID &&
+              mod?.fileName &&
+              fse.pathExists(
+                path.join(instancesPath, instanceName, mod.fileName)
+              )
+            )
+              return true;
             return false;
           })
         : selectedFiles;
