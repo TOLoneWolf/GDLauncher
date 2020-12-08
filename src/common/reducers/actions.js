@@ -453,24 +453,24 @@ export function loginThroughNativeLauncher() {
         ? path.resolve(homedir, "../", mcFolder)
         : path.join(homedir, mcFolder);
     const vnlJson = await fse.readJson(
-      path.join(vanillaMCPath, "launcher_profiles.json")
+      path.join(vanillaMCPath, "launcher_accounts.json")
     );
 
     try {
-      const { clientToken } = vnlJson;
-      const { account } = vnlJson.selectedUser;
-      const { accessToken } = vnlJson.authenticationDatabase[account];
+      const { mojangClientToken } = vnlJson;
+      const { activeAccountLocalId } = vnlJson;
+      const { accessToken } = vnlJson.accounts[activeAccountLocalId];
 
-      const { data } = await mcRefresh(accessToken, clientToken);
+      const { data } = await mcRefresh(accessToken, mojangClientToken);
       const skinUrl = await getPlayerSkin(data.selectedProfile.id);
       if (skinUrl) {
         data.skin = skinUrl;
       }
 
-      // We need to update the accessToken in launcher_profiles.json
-      vnlJson.authenticationDatabase[account].accessToken = data.accessToken;
+      // We need to update the accessToken in launcher_accounts.json
+      vnlJson.accounts[activeAccountLocalId].accessToken = data.accessToken;
       await fse.outputJson(
-        path.join(vanillaMCPath, "launcher_profiles.json"),
+        path.join(vanillaMCPath, "launcher_accounts.json"),
         vnlJson
       );
 
