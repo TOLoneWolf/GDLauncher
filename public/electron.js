@@ -376,10 +376,10 @@ ipcMain.handle("open-devtools", () => {
   mainWindow.webContents.openDevTools({ mode: "undocked" });
 });
 
-ipcMain.handle("openFolderDialog", (e, defaultPath) => {
+ipcMain.handle("openFolderDialog", (e, _defaultPath) => {
   return dialog.showOpenDialog({
     properties: ["openDirectory"],
-    defaultPath: path.dirname(defaultPath),
+    defaultPath: _defaultPath,
   });
 });
 
