@@ -34,21 +34,24 @@ const InstanceExportCurseForge = ({ instanceName }) => {
   const instancePath = path.join(instancesPath, instanceName);
   const [exporterDirectory, setExporterDirectory] = useState("");
 
-  if (exporterDirectory === "") {
-    if (
-      instanceConfig?.exporter?.lastPath &&
-      fse.pathExists(instanceConfig?.exporter?.lastPath)
-    ) {
-      setExporterDirectory(instanceConfig.exporter.lastPath);
-      setFilePath(instanceConfig.exporter.lastPath);
-    } else {
-      setExporterDirectory(instancePath);
-    }
+  async function preLoadChecks() {
+    if (exporterDirectory === "") {
+      if (
+        instanceConfig?.exporter?.lastPath &&
+        (await fse.pathExists(instanceConfig.exporter.lastPath))
+      ) {
+        setExporterDirectory(instanceConfig.exporter.lastPath);
+        setFilePath(instanceConfig.exporter.lastPath);
+      } else {
+        setExporterDirectory(instancePath);
+      }
 
-    if (instanceConfig?.exporter?.version) {
-      setPackVersion(instanceConfig?.exporter?.version);
+      if (instanceConfig?.exporter?.version) {
+        setPackVersion(instanceConfig?.exporter?.version);
+      }
     }
   }
+  preLoadChecks();
 
   const openFolderDialog = async () => {
     const dialog = await ipcRenderer.invoke(
