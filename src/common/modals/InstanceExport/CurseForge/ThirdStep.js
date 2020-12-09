@@ -140,8 +140,9 @@ export default function ThirdStep({
               fse.pathExists(
                 path.join(instancesPath, instanceName, mod.fileName)
               )
-            )
+            ) {
               return true;
+            }
             return false;
           })
         : selectedFiles;
