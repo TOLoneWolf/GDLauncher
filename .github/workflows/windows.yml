@@ -28,7 +28,7 @@ jobs:
 
     # Install Node Tools
     - name: Install Node Tools
-      run: npm install --global --production --vs2019 windows-build-tools@4.0.0
+      run: npm install --global --production --vs2015 windows-build-tools@4.0.0
 
     # Install Node GYP
     - name: Install Node GYP
@@ -36,7 +36,7 @@ jobs:
 
     # Set Node MSVC Version
     - name: Set Node MSVC Version
-      run: npm config set msvs_version 2019
+      run: npm config set msvs_version 2015
 
     # Increase Yarn Timeout due to Azure Timing It Out
     - name: Increase Yarn Timeout
